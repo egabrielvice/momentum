@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import date, datetime
 from database import *
 
-st.set_page_config(page_title="Momentum v2.3", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Momentum v3.1", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
 
 
@@ -312,7 +312,95 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-require_password()
+
+st.markdown("""
+<style>
+    /* v3.1 mobile optimization */
+    @media (max-width: 900px) {
+        .block-container {
+            padding-top: 1rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
+            padding-bottom: 5rem !important;
+        }
+
+        h1 { font-size: 1.75rem !important; line-height: 1.1 !important; }
+        h2 { font-size: 1.35rem !important; }
+        h3 { font-size: 1.12rem !important; }
+
+        .hero-card {
+            padding: 1rem !important;
+            border-radius: 18px !important;
+            margin-bottom: 0.75rem !important;
+        }
+
+        .section-card {
+            padding: 0.9rem !important;
+            border-radius: 18px !important;
+            margin: 0.65rem 0 !important;
+        }
+
+        div[data-testid="stMetric"] {
+            padding: 0.8rem !important;
+            border-radius: 16px !important;
+            margin-bottom: 0.65rem !important;
+        }
+
+        div[data-testid="stMetricValue"] {
+            font-size: 1.55rem !important;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button {
+            width: 100% !important;
+            min-height: 3rem !important;
+            font-size: 1rem !important;
+            border-radius: 14px !important;
+        }
+
+        input, textarea, select {
+            font-size: 16px !important;
+        }
+
+        div[data-baseweb="input"] input,
+        div[data-baseweb="textarea"] textarea {
+            font-size: 16px !important;
+        }
+    }
+
+    .mobile-exercise-card {
+        background: rgba(255,253,249,0.92);
+        border: 1px solid #E4D8C8;
+        border-radius: 20px;
+        padding: 1rem;
+        margin: 0.85rem 0;
+        box-shadow: 0 10px 24px rgba(59,48,36,0.06);
+    }
+
+    .mobile-exercise-title {
+        color: #9B1C1C;
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin-bottom: 0.15rem;
+    }
+
+    .mobile-exercise-meta {
+        color: #7B6A58;
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .mobile-priority-note {
+        background: rgba(31,58,95,0.08);
+        color: #1F3A5F;
+        border-radius: 14px;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        font-size: 0.92rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 
 # st.title("Momentum v2.1")  # Hidden for premium dashboard layout
 st.caption("Training intelligence for progressive overload.")
@@ -661,8 +749,12 @@ if page == "Dashboard":
         unsafe_allow_html=True
     )
 
+    st.info("Phone tip: open the sidebar menu and go to Today's Workout to log your session faster.")
+
 elif page == "Today's Workout":
     st.header("Today's Workout")
+    st.caption("Mobile-optimized logging for gym sessions.")
+
     days = get_workout_days()
 
     if days.empty:
@@ -672,12 +764,22 @@ elif page == "Today's Workout":
     day_options = [f"{row.day} — {row.workout_name}" for _, row in days.iterrows()]
     next_label = f"{next_workout['day']} — {next_workout['workout_name']}"
     default_index = day_options.index(next_label) if next_label in day_options else 0
+
+    st.info(f"Recommended: {next_label}")
     selected_label = st.selectbox("Workout", day_options, index=default_index)
     selected_day = selected_label.split(" — ")[0]
     selected_row = days[days["day"] == selected_day].iloc[0]
 
-    st.info(f"Recommended Next Workout: {next_label}")
-    st.caption(f"Week {week}/12 · {phase}")
+    st.markdown(
+        f"""
+        <div class="hero-card">
+            <div class="eyebrow">Current Session</div>
+            <h2>{selected_row['day']} — {selected_row['workout_name']}</h2>
+            <p>Week {week}/12 · {phase}</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     exercises = get_exercises(selected_day)
     recovery_status = get_today_recovery()
@@ -686,38 +788,58 @@ elif page == "Today's Workout":
         st.info("This workout day exists, but it has no exercises yet. Add exercises in Program Manager.")
         st.stop()
 
+    quick_mode = st.toggle("Compact gym mode", value=True)
+    st.caption("Compact gym mode keeps the logging screen cleaner on your phone.")
+
     for _, ex in exercises.iterrows():
         latest = get_latest_log(int(ex["id"]))
         rec = recommendation(ex, latest, recovery_status)
-        st.markdown("---")
-        st.subheader(ex["exercise_name"])
-        st.caption(f"{ex['muscle_group']} · Target: {ex['target_sets']} sets × {ex['min_reps']}–{ex['max_reps']} · Type: {ex['progression_type']}")
+        plan = smart_progression_plan(ex, latest)
+
+        st.markdown(
+            f"""
+            <div class="mobile-exercise-card">
+                <div class="mobile-exercise-title">{ex['exercise_name']}</div>
+                <div class="mobile-exercise-meta">{ex['muscle_group']} · {ex['target_sets']} sets × {ex['min_reps']}–{ex['max_reps']} · {ex['progression_type']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         if latest:
             weight, reps, rir, notes, log_date = latest
-            st.info(f"Last session: {weight or 0:g} · reps: {reps} · RIR: {rir if rir is not None else 'N/A'} · {log_date}")
+            st.write(f"**Last:** {weight or 0:g} · reps/time: {reps} · RIR: {rir if rir is not None else 'N/A'} · {log_date}")
         else:
-            st.warning("No previous log. Use today as baseline.")
+            st.write("**Last:** No previous log. Use today as baseline.")
 
         if count_stall_sessions(int(ex["id"])):
             st.error("Plateau warning: same result logged for 3 sessions.")
 
-        st.success(f"Recommendation: {rec}")
-
-        plan = smart_progression_plan(ex, latest)
-        with st.expander("Smart Progression Plan"):
-            p1, p2, p3 = st.columns(3)
-            p1.metric("Next Weight", plan["Next Weight"])
-            p2.metric("Target", plan["Target"])
-            p3.write(plan["Reason"])
+        if quick_mode:
+            st.markdown(
+                f"""
+                <div class="mobile-priority-note">
+                    <strong>Next:</strong> {plan['Next Weight']} · <strong>Target:</strong> {plan['Target']}<br>
+                    {plan['Reason']}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            st.success(f"Recommendation: {rec}")
+            with st.expander("Smart Progression Plan"):
+                p1, p2, p3 = st.columns(3)
+                p1.metric("Next Weight", plan["Next Weight"])
+                p2.metric("Target", plan["Target"])
+                p3.write(plan["Reason"])
 
         with st.form(f"log_{ex['id']}"):
-            c1, c2 = st.columns(2)
-            weight_input = c1.number_input("Actual Weight / Load", min_value=0.0, step=2.5, key=f"w_{ex['id']}")
-            reps_input = c2.text_input("Actual Reps / Time / Steps", placeholder="Example: 8,8,7,6", key=f"r_{ex['id']}")
+            weight_input = st.number_input("Weight / Load", min_value=0.0, step=2.5, key=f"w_{ex['id']}")
+            reps_input = st.text_input("Reps / Time / Steps", placeholder="Example: 8,8,7,6", key=f"r_{ex['id']}")
             rir_input = st.slider("RIR", 0.0, 5.0, 2.0, 0.5, key=f"rir_{ex['id']}")
-            notes_input = st.text_area("Notes", key=f"notes_{ex['id']}")
-            if st.form_submit_button("Save Exercise Log"):
+            notes_input = "" if quick_mode else st.text_area("Notes", key=f"notes_{ex['id']}")
+
+            if st.form_submit_button("Save This Exercise"):
                 if reps_input.strip():
                     save_workout_log(str(date.today()), int(ex["id"]), weight_input, reps_input, rir_input, notes_input)
                     st.success(f"{ex['exercise_name']} saved.")
@@ -1237,4 +1359,4 @@ elif page == "Settings":
             st.error("Check the confirmation box first.")
 
     st.subheader("Version")
-    st.code("Momentum v2.3 - Private Login")
+    st.code("Momentum v3.1 - Mobile Optimization")

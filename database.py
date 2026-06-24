@@ -3,13 +3,7 @@ import sqlite3
 from pathlib import Path
 from datetime import date, datetime
 
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
-
-BACKUP_DIR = Path("backups")
-BACKUP_DIR.mkdir(exist_ok=True)
-
-DB_PATH = DATA_DIR / "momentum.db"
+DB_PATH = Path("momentum.db")
 
 WORKOUT_EXERCISES = [
     ("Day 1", 1, "Shoulders + Core", "Seated DB Press", "Shoulders", 4, 6, 8, "weight"),
@@ -575,27 +569,6 @@ def duplicate_exercise_to_day(exercise_id, new_day, new_day_order, new_workout_n
 
     conn.commit()
     conn.close()
-
-
-def create_database_backup():
-    from datetime import datetime
-    import shutil
-
-    if not DB_PATH.exists():
-        return None
-
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    backup_path = BACKUP_DIR / f"momentum_backup_{timestamp}.db"
-    shutil.copy2(DB_PATH, backup_path)
-    return str(backup_path)
-
-def get_latest_backup():
-    backups = sorted(BACKUP_DIR.glob("momentum_backup_*.db"), reverse=True)
-    return str(backups[0]) if backups else "No backups yet"
-
-def get_database_path():
-    return str(DB_PATH)
-
 
 def get_export_tables():
     return {

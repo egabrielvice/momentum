@@ -1,37 +1,25 @@
-# Momentum v2.2 - Deployment Ready
+# Momentum v3.1 - Mobile Optimization
 
 ## Purpose
 
-This version prepares Momentum for clean online deployment.
+This version optimizes Momentum for gym use on a phone.
 
 ## Added
 
-- Stable `data/` folder
-- SQLite moved to `data/momentum.db`
-- `backups/` folder
-- One-click database backup in Settings
-- Database location shown in Settings
-- Latest backup shown in Settings
-- `.gitignore`
-- `.streamlit/config.toml`
-- Deployment checklist
+- Mobile-friendly spacing
+- Larger buttons and input fields
+- Compact gym mode in Today's Workout
+- Cleaner exercise cards
+- Faster exercise logging
+- Better mobile layout behavior
+- Keeps private login protection
 
-## Preserved
-
-- Premium dashboard
-- Program Manager
-- Program Editor
-- Workout logging
-- Workout editing
-- Bodyweight Log
-- Bodyweight Trend
-- Personal Records
-- Momentum Score
-- Smart Progression
-- Export / Backup
-
-## Run
+## Run Locally
 
 ```powershell
-py -m streamlit run app.py --server.port 8522
+py -m streamlit run app.py --server.port 8531
 ```
+
+## Deployment
+
+Upload the updated files to GitHub. Streamlit will redeploy automatically.
