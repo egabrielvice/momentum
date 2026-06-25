@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import date, datetime
 from database import *
 
-st.set_page_config(page_title="Momentum 5.5 Complete", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Momentum 6.0", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
 
 
@@ -883,6 +883,53 @@ st.markdown("""
         .m55-exercise-card {
             border-radius: 20px;
             padding: 1rem;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+
+st.markdown("""
+<style>
+    /* Momentum 6.0 Core Complete polish */
+
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+    }
+
+    div[data-testid="stMetric"] {
+        min-height: 124px;
+    }
+
+    div[data-testid="stMetricValue"] {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+        font-size: clamp(1.55rem, 2.6vw, 2.35rem) !important;
+    }
+
+    section[data-testid="stSidebar"] {
+        background:
+            radial-gradient(circle at top left, rgba(155,28,28,0.08), transparent 30%),
+            linear-gradient(180deg, #FFF8EF 0%, #F1E6D8 100%) !important;
+        border-right: 1px solid #E4D8C8 !important;
+        box-shadow: 10px 0 30px rgba(59,48,36,0.05);
+    }
+
+    @media (max-width: 900px) {
+        .block-container {
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        div[data-testid="stMetric"] {
+            min-height: auto;
+        }
+
+        div[data-testid="stMetricValue"] {
+            font-size: 1.75rem !important;
         }
     }
 </style>
@@ -2060,4 +2107,4 @@ elif page == "Settings":
             st.error("Check the confirmation box first.")
 
     st.subheader("Version")
-    st.code("Momentum 5.5 Complete - UI + Database Patch")
+    st.code("Momentum 6.0 - Core Complete")
