@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import date, datetime
 from database import *
 
-st.set_page_config(page_title="Momentum 5.5", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Momentum 5.5 Complete", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
 
 
@@ -2060,4 +2060,4 @@ elif page == "Settings":
             st.error("Check the confirmation box first.")
 
     st.subheader("Version")
-    st.code("Momentum 5.5 - Premium UI Bundle")
+    st.code("Momentum 5.5 Complete - UI + Database Patch")

@@ -3,13 +3,9 @@ import sqlite3
 from pathlib import Path
 from datetime import date, datetime
 
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
-
+DB_PATH = Path("momentum.db")
 BACKUP_DIR = Path("backups")
 BACKUP_DIR.mkdir(exist_ok=True)
-
-DB_PATH = DATA_DIR / "momentum.db"
 
 WORKOUT_EXERCISES = [
     ("Day 1", 1, "Shoulders + Core", "Seated DB Press", "Shoulders", 4, 6, 8, "weight"),
@@ -151,7 +147,6 @@ def init_db():
         """, item)
     conn.commit()
     conn.close()
-    ensure_program_archive_column()
 
 def fetch_df(query, params=()):
     import pandas as pd
@@ -198,7 +193,7 @@ def get_phase(week):
 
 def get_programs():
     ensure_program_archive_column()
-    return fetch_df("SELECT * FROM programs ORDER BY is_archived, id")
+    return fetch_df("SELECT * FROM programs ORDER BY id")
 
 def get_active_program_id():
     return int(get_setting("active_program_id", "1"))
@@ -578,6 +573,28 @@ def duplicate_exercise_to_day(exercise_id, new_day, new_day_order, new_workout_n
     conn.commit()
     conn.close()
 
+def get_export_tables():
+    return {
+        "programs": fetch_df("SELECT * FROM programs ORDER BY id"),
+        "exercises": fetch_df("SELECT * FROM exercises ORDER BY program_id, day_order, id"),
+        "workout_logs": fetch_df("SELECT * FROM workout_logs ORDER BY id"),
+        "workout_completions": fetch_df("SELECT * FROM workout_completions ORDER BY id"),
+        "daily_checkins": fetch_df("SELECT * FROM daily_checkins ORDER BY checkin_date"),
+        "app_settings": fetch_df("SELECT * FROM app_settings ORDER BY key"),
+    }
+
+def reset_test_data():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM workout_logs")
+    cur.execute("DELETE FROM daily_checkins")
+    cur.execute("DELETE FROM workout_completions")
+    conn.commit()
+    conn.close()
+
+
+
+# --- Momentum 5.5 compatibility helpers ---
 
 def ensure_program_archive_column():
     conn = get_connection()
@@ -588,31 +605,14 @@ def ensure_program_archive_column():
     conn.commit()
     conn.close()
 
-def archive_program(program_id):
-    if int(program_id) == 1:
-        return
+def get_program_count_summary():
     ensure_program_archive_column()
-    execute("UPDATE programs SET is_archived = 1 WHERE id = ?", (int(program_id),))
-
-def unarchive_program(program_id):
-    ensure_program_archive_column()
-    execute("UPDATE programs SET is_archived = 0 WHERE id = ?", (int(program_id),))
-
-def get_muscle_volume_summary():
     return fetch_df("""
         SELECT
-            e.muscle_group,
-            COUNT(wl.id) AS logs,
-            ROUND(SUM(COALESCE(wl.weight, 0) * (
-                CASE
-                    WHEN wl.reps IS NULL THEN 0
-                    ELSE 1
-                END
-            )), 1) AS raw_load
-        FROM workout_logs wl
-        JOIN exercises e ON wl.exercise_id = e.id
-        GROUP BY e.muscle_group
-        ORDER BY logs DESC
+            SUM(CASE WHEN is_archived = 0 THEN 1 ELSE 0 END) AS active_programs,
+            SUM(CASE WHEN is_archived = 1 THEN 1 ELSE 0 END) AS archived_programs,
+            COUNT(*) AS total_programs
+        FROM programs
     """)
 
 def get_weekly_workout_summary():
@@ -637,62 +637,50 @@ def get_exercise_frequency():
         ORDER BY logs DESC
     """)
 
-def get_program_count_summary():
-    ensure_program_archive_column()
+def get_muscle_volume_summary():
     return fetch_df("""
         SELECT
-            SUM(CASE WHEN is_archived = 0 THEN 1 ELSE 0 END) AS active_programs,
-            SUM(CASE WHEN is_archived = 1 THEN 1 ELSE 0 END) AS archived_programs,
-            COUNT(*) AS total_programs
-        FROM programs
+            e.muscle_group,
+            COUNT(wl.id) AS logs,
+            ROUND(SUM(COALESCE(wl.weight, 0)), 1) AS total_logged_load
+        FROM workout_logs wl
+        JOIN exercises e ON wl.exercise_id = e.id
+        GROUP BY e.muscle_group
+        ORDER BY logs DESC
     """)
 
+def archive_program(program_id):
+    ensure_program_archive_column()
+    execute("UPDATE programs SET is_archived = 1 WHERE id = ?", (int(program_id),))
 
+def unarchive_program(program_id):
+    ensure_program_archive_column()
+    execute("UPDATE programs SET is_archived = 0 WHERE id = ?", (int(program_id),))
+
+def get_database_path():
+    return str(DB_PATH)
+
+def get_latest_backup():
+    try:
+        backups = sorted(BACKUP_DIR.glob("momentum_backup_*.db"), reverse=True)
+        return str(backups[0]) if backups else "No backups yet"
+    except Exception:
+        return "No backups yet"
 
 def create_database_backup():
-    from datetime import datetime
-    import shutil
+    try:
+        from datetime import datetime
+        import shutil
 
-    if not DB_PATH.exists():
+        if not DB_PATH.exists():
+            return None
+
+        BACKUP_DIR.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+        backup_path = BACKUP_DIR / f"momentum_backup_{timestamp}.db"
+        shutil.copy2(DB_PATH, backup_path)
+        return str(backup_path)
+    except Exception:
         return None
 
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    backup_path = BACKUP_DIR / f"momentum_backup_{timestamp}.db"
-    shutil.copy2(DB_PATH, backup_path)
-    return str(backup_path)
-
-def get_latest_backup():
-    backups = sorted(BACKUP_DIR.glob("momentum_backup_*.db"), reverse=True)
-    return str(backups[0]) if backups else "No backups yet"
-
-def get_database_path():
-    return str(DB_PATH)
-
-
-def get_export_tables():
-    return {
-        "programs": fetch_df("SELECT * FROM programs ORDER BY id"),
-        "exercises": fetch_df("SELECT * FROM exercises ORDER BY program_id, day_order, id"),
-        "workout_logs": fetch_df("SELECT * FROM workout_logs ORDER BY id"),
-        "workout_completions": fetch_df("SELECT * FROM workout_completions ORDER BY id"),
-        "daily_checkins": fetch_df("SELECT * FROM daily_checkins ORDER BY checkin_date"),
-        "app_settings": fetch_df("SELECT * FROM app_settings ORDER BY key"),
-    }
-
-def reset_test_data():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM workout_logs")
-    cur.execute("DELETE FROM daily_checkins")
-    cur.execute("DELETE FROM workout_completions")
-    conn.commit()
-    conn.close()
-
-def get_database_path():
-    return str(DB_PATH)
-
-def get_latest_backup():
-    return "No backups yet"
-
-def create_database_backup():
-    return None
+# --- End Momentum 5.5 compatibility helpers ---
