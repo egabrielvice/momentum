@@ -1,25 +1,17 @@
-# Momentum v3.1 - Mobile Optimization
-
-## Purpose
-
-This version optimizes Momentum for gym use on a phone.
+# Momentum v4.4 - Premium UI Bundle
 
 ## Added
+- Premium dashboard hero
+- 12-week visual timeline
+- Premium cards
+- Improved dashboard hierarchy
+- Cleaner recovery overview
+- Preserved login and core functionality
 
-- Mobile-friendly spacing
-- Larger buttons and input fields
-- Compact gym mode in Today's Workout
-- Cleaner exercise cards
-- Faster exercise logging
-- Better mobile layout behavior
-- Keeps private login protection
+## Important
+Use your existing `database.py` from your working Momentum dev folder.
 
 ## Run Locally
-
 ```powershell
-py -m streamlit run app.py --server.port 8531
+py -m streamlit run app.py --server.port 8544
 ```
-
-## Deployment
-
-Upload the updated files to GitHub. Streamlit will redeploy automatically.

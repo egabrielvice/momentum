@@ -3,7 +3,13 @@ import sqlite3
 from pathlib import Path
 from datetime import date, datetime
 
-DB_PATH = Path("momentum.db")
+DATA_DIR = Path("data")
+DATA_DIR.mkdir(exist_ok=True)
+
+BACKUP_DIR = Path("backups")
+BACKUP_DIR.mkdir(exist_ok=True)
+
+DB_PATH = DATA_DIR / "momentum.db"
 
 WORKOUT_EXERCISES = [
     ("Day 1", 1, "Shoulders + Core", "Seated DB Press", "Shoulders", 4, 6, 8, "weight"),
@@ -145,6 +151,7 @@ def init_db():
         """, item)
     conn.commit()
     conn.close()
+    ensure_program_archive_column()
 
 def fetch_df(query, params=()):
     import pandas as pd
@@ -190,7 +197,8 @@ def get_phase(week):
     return "Peak Phase"
 
 def get_programs():
-    return fetch_df("SELECT * FROM programs ORDER BY id")
+    ensure_program_archive_column()
+    return fetch_df("SELECT * FROM programs ORDER BY is_archived, id")
 
 def get_active_program_id():
     return int(get_setting("active_program_id", "1"))
@@ -570,6 +578,97 @@ def duplicate_exercise_to_day(exercise_id, new_day, new_day_order, new_workout_n
     conn.commit()
     conn.close()
 
+
+def ensure_program_archive_column():
+    conn = get_connection()
+    cur = conn.cursor()
+    columns = [row[1] for row in cur.execute("PRAGMA table_info(programs)").fetchall()]
+    if "is_archived" not in columns:
+        cur.execute("ALTER TABLE programs ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+    conn.close()
+
+def archive_program(program_id):
+    if int(program_id) == 1:
+        return
+    ensure_program_archive_column()
+    execute("UPDATE programs SET is_archived = 1 WHERE id = ?", (int(program_id),))
+
+def unarchive_program(program_id):
+    ensure_program_archive_column()
+    execute("UPDATE programs SET is_archived = 0 WHERE id = ?", (int(program_id),))
+
+def get_muscle_volume_summary():
+    return fetch_df("""
+        SELECT
+            e.muscle_group,
+            COUNT(wl.id) AS logs,
+            ROUND(SUM(COALESCE(wl.weight, 0) * (
+                CASE
+                    WHEN wl.reps IS NULL THEN 0
+                    ELSE 1
+                END
+            )), 1) AS raw_load
+        FROM workout_logs wl
+        JOIN exercises e ON wl.exercise_id = e.id
+        GROUP BY e.muscle_group
+        ORDER BY logs DESC
+    """)
+
+def get_weekly_workout_summary():
+    return fetch_df("""
+        SELECT
+            completion_date,
+            COUNT(*) AS completed_workouts
+        FROM workout_completions
+        GROUP BY completion_date
+        ORDER BY completion_date ASC
+    """)
+
+def get_exercise_frequency():
+    return fetch_df("""
+        SELECT
+            e.exercise_name,
+            e.muscle_group,
+            COUNT(wl.id) AS logs
+        FROM workout_logs wl
+        JOIN exercises e ON wl.exercise_id = e.id
+        GROUP BY e.exercise_name, e.muscle_group
+        ORDER BY logs DESC
+    """)
+
+def get_program_count_summary():
+    ensure_program_archive_column()
+    return fetch_df("""
+        SELECT
+            SUM(CASE WHEN is_archived = 0 THEN 1 ELSE 0 END) AS active_programs,
+            SUM(CASE WHEN is_archived = 1 THEN 1 ELSE 0 END) AS archived_programs,
+            COUNT(*) AS total_programs
+        FROM programs
+    """)
+
+
+
+def create_database_backup():
+    from datetime import datetime
+    import shutil
+
+    if not DB_PATH.exists():
+        return None
+
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+    backup_path = BACKUP_DIR / f"momentum_backup_{timestamp}.db"
+    shutil.copy2(DB_PATH, backup_path)
+    return str(backup_path)
+
+def get_latest_backup():
+    backups = sorted(BACKUP_DIR.glob("momentum_backup_*.db"), reverse=True)
+    return str(backups[0]) if backups else "No backups yet"
+
+def get_database_path():
+    return str(DB_PATH)
+
+
 def get_export_tables():
     return {
         "programs": fetch_df("SELECT * FROM programs ORDER BY id"),
@@ -588,3 +687,12 @@ def reset_test_data():
     cur.execute("DELETE FROM workout_completions")
     conn.commit()
     conn.close()
+
+def get_database_path():
+    return str(DB_PATH)
+
+def get_latest_backup():
+    return "No backups yet"
+
+def create_database_backup():
+    return None

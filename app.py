@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import date, datetime
 from database import *
 
-st.set_page_config(page_title="Momentum v3.1", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Momentum 5.5", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
 
 
@@ -315,88 +315,575 @@ st.markdown("""
 
 st.markdown("""
 <style>
-    /* v3.1 mobile optimization */
-    @media (max-width: 900px) {
-        .block-container {
-            padding-top: 1rem !important;
-            padding-left: 0.8rem !important;
-            padding-right: 0.8rem !important;
-            padding-bottom: 5rem !important;
-        }
-
-        h1 { font-size: 1.75rem !important; line-height: 1.1 !important; }
-        h2 { font-size: 1.35rem !important; }
-        h3 { font-size: 1.12rem !important; }
-
-        .hero-card {
-            padding: 1rem !important;
-            border-radius: 18px !important;
-            margin-bottom: 0.75rem !important;
-        }
-
-        .section-card {
-            padding: 0.9rem !important;
-            border-radius: 18px !important;
-            margin: 0.65rem 0 !important;
-        }
-
-        div[data-testid="stMetric"] {
-            padding: 0.8rem !important;
-            border-radius: 16px !important;
-            margin-bottom: 0.65rem !important;
-        }
-
-        div[data-testid="stMetricValue"] {
-            font-size: 1.55rem !important;
-        }
-
-        .stButton > button,
-        .stDownloadButton > button {
-            width: 100% !important;
-            min-height: 3rem !important;
-            font-size: 1rem !important;
-            border-radius: 14px !important;
-        }
-
-        input, textarea, select {
-            font-size: 16px !important;
-        }
-
-        div[data-baseweb="input"] input,
-        div[data-baseweb="textarea"] textarea {
-            font-size: 16px !important;
-        }
-    }
-
-    .mobile-exercise-card {
+    /* v3.4 bundle polish */
+    .power-tile {
         background: rgba(255,253,249,0.92);
         border: 1px solid #E4D8C8;
         border-radius: 20px;
         padding: 1rem;
-        margin: 0.85rem 0;
+        margin: 0.75rem 0;
         box-shadow: 0 10px 24px rgba(59,48,36,0.06);
     }
 
-    .mobile-exercise-title {
+    .power-title {
         color: #9B1C1C;
-        font-size: 1.2rem;
         font-weight: 800;
-        margin-bottom: 0.15rem;
+        font-size: 1.1rem;
     }
 
-    .mobile-exercise-meta {
+    .power-muted {
         color: #7B6A58;
         font-size: 0.9rem;
-        margin-bottom: 0.6rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
+    /* Momentum v4.4 Premium UI Bundle */
+    .premium-hero {
+        background:
+            radial-gradient(circle at top right, rgba(212,166,90,0.18), transparent 28%),
+            linear-gradient(135deg, rgba(255,253,249,0.95), rgba(246,240,232,0.88));
+        border: 1px solid #E4D8C8;
+        border-radius: 30px;
+        padding: 1.6rem 1.7rem;
+        box-shadow: 0 18px 42px rgba(59,48,36,0.10);
+        margin-bottom: 1rem;
     }
 
-    .mobile-priority-note {
-        background: rgba(31,58,95,0.08);
+    .premium-hero h1 {
+        margin: 0;
+        font-size: 2.55rem;
+        letter-spacing: -0.055em;
+        color: #34281F;
+    }
+
+    .premium-hero-sub {
+        color: #7B6A58;
+        margin-top: 0.35rem;
+        font-size: 1rem;
+    }
+
+    .premium-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .premium-pill {
+        display: inline-block;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(31,58,95,0.10);
         color: #1F3A5F;
-        border-radius: 14px;
-        padding: 0.75rem;
-        margin: 0.5rem 0;
+        font-weight: 800;
+        font-size: 0.82rem;
+    }
+
+    .premium-pill-red {
+        background: rgba(155,28,28,0.11);
+        color: #9B1C1C;
+    }
+
+    .premium-timeline {
+        background: rgba(255,253,249,0.88);
+        border: 1px solid #E4D8C8;
+        border-radius: 24px;
+        padding: 1rem;
+        box-shadow: 0 12px 28px rgba(59,48,36,0.07);
+        margin: 1rem 0;
+    }
+
+    .timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(42px, 1fr));
+        gap: 0.45rem;
+    }
+
+    .week-chip {
+        text-align: center;
+        border-radius: 16px;
+        padding: 0.55rem 0.25rem;
+        border: 1px solid #E4D8C8;
+        background: rgba(246,240,232,0.72);
+        color: #7B6A58;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .week-chip.done {
+        background: rgba(31,58,95,0.10);
+        color: #1F3A5F;
+        border-color: rgba(31,58,95,0.18);
+    }
+
+    .week-chip.current {
+        background: linear-gradient(135deg, #9B1C1C, #7F1717);
+        color: white;
+        border-color: #7F1717;
+        box-shadow: 0 10px 22px rgba(155,28,28,0.18);
+    }
+
+    .premium-card {
+        background: rgba(255,253,249,0.9);
+        border: 1px solid #E4D8C8;
+        border-radius: 26px;
+        padding: 1.15rem 1.25rem;
+        box-shadow: 0 14px 32px rgba(59,48,36,0.075);
+        margin: 0.75rem 0 1rem 0;
+    }
+
+    .premium-card-title {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #7B6A58;
+        font-size: 0.72rem;
+        font-weight: 850;
+        margin-bottom: 0.5rem;
+    }
+
+    .premium-card-main {
+        color: #9B1C1C;
+        font-size: 1.45rem;
+        font-weight: 850;
+        letter-spacing: -0.035em;
+    }
+
+    .premium-card-muted {
+        color: #7B6A58;
         font-size: 0.92rem;
+        margin-top: 0.35rem;
+    }
+
+    .premium-action {
+        background: linear-gradient(135deg, #9B1C1C 0%, #7F1717 100%);
+        color: #FFFDF9;
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        text-align: center;
+        font-weight: 850;
+        margin-top: 1rem;
+        box-shadow: 0 12px 28px rgba(155,28,28,0.22);
+    }
+
+    @media (max-width: 900px) {
+        .premium-hero {
+            padding: 1.2rem;
+            border-radius: 22px;
+        }
+
+        .premium-hero h1 {
+            font-size: 2rem;
+        }
+
+        .timeline-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .premium-card {
+            border-radius: 22px;
+            padding: 1rem;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+
+st.markdown("""
+<style>
+    /* Momentum 5.0 - Premium Operating System */
+
+    .m5-hero {
+        background:
+            radial-gradient(circle at top right, rgba(212,166,90,0.18), transparent 30%),
+            linear-gradient(135deg, rgba(255,253,249,0.97), rgba(246,240,232,0.88));
+        border: 1px solid #E4D8C8;
+        border-radius: 32px;
+        padding: 1.65rem 1.75rem;
+        box-shadow: 0 18px 44px rgba(59,48,36,0.10);
+        margin-bottom: 1rem;
+    }
+
+    .m5-hero h1 {
+        margin: 0;
+        font-size: 2.65rem;
+        letter-spacing: -0.06em;
+        color: #34281F;
+    }
+
+    .m5-hero-sub {
+        color: #7B6A58;
+        margin-top: 0.4rem;
+        font-size: 1rem;
+        max-width: 640px;
+    }
+
+    .m5-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 1rem;
+    }
+
+    .m5-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.42rem 0.76rem;
+        border-radius: 999px;
+        background: rgba(31,58,95,0.10);
+        color: #1F3A5F;
+        font-weight: 850;
+        font-size: 0.82rem;
+    }
+
+    .m5-pill-red {
+        background: rgba(155,28,28,0.11);
+        color: #9B1C1C;
+    }
+
+    .m5-timeline {
+        background: rgba(255,253,249,0.90);
+        border: 1px solid #E4D8C8;
+        border-radius: 26px;
+        padding: 1rem;
+        box-shadow: 0 12px 30px rgba(59,48,36,0.07);
+        margin: 1rem 0 1.1rem;
+    }
+
+    .m5-timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(42px, 1fr));
+        gap: 0.45rem;
+    }
+
+    .m5-week-chip {
+        text-align: center;
+        border-radius: 16px;
+        padding: 0.55rem 0.25rem;
+        border: 1px solid #E4D8C8;
+        background: rgba(246,240,232,0.72);
+        color: #7B6A58;
+        font-size: 0.78rem;
+        font-weight: 850;
+        min-height: 54px;
+    }
+
+    .m5-week-chip.done {
+        background: rgba(31,58,95,0.10);
+        color: #1F3A5F;
+        border-color: rgba(31,58,95,0.18);
+    }
+
+    .m5-week-chip.current {
+        background: linear-gradient(135deg, #9B1C1C, #7F1717);
+        color: white;
+        border-color: #7F1717;
+        box-shadow: 0 10px 22px rgba(155,28,28,0.18);
+    }
+
+    .m5-card {
+        background: rgba(255,253,249,0.92);
+        border: 1px solid #E4D8C8;
+        border-radius: 26px;
+        padding: 1.15rem 1.25rem;
+        box-shadow: 0 14px 32px rgba(59,48,36,0.075);
+        margin: 0.75rem 0 1rem;
+    }
+
+    .m5-workout-card {
+        background: rgba(255,253,249,0.94);
+        border: 1px solid #E4D8C8;
+        border-radius: 28px;
+        padding: 1.2rem 1.3rem 1.25rem;
+        box-shadow: 0 16px 38px rgba(59,48,36,0.08);
+        margin: 0.75rem 0 1rem;
+    }
+
+    .m5-eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #7B6A58;
+        font-size: 0.72rem;
+        font-weight: 850;
+        margin-bottom: 0.5rem;
+    }
+
+    .m5-main {
+        color: #9B1C1C;
+        font-size: 1.5rem;
+        font-weight: 880;
+        letter-spacing: -0.04em;
+        margin-bottom: 0.35rem;
+    }
+
+    .m5-muted {
+        color: #7B6A58;
+        font-size: 0.92rem;
+        margin-top: 0.2rem;
+    }
+
+    .m5-exercise-list {
+        margin-top: 0.95rem;
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .m5-exercise-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        padding: 0.52rem 0.65rem;
+        border-radius: 14px;
+        background: rgba(246,240,232,0.62);
+        border: 1px solid rgba(228,216,200,0.75);
+        color: #6E5F50;
+        font-size: 0.92rem;
+    }
+
+    .m5-exercise-name {
+        font-weight: 780;
+        color: #34281F;
+    }
+
+    .m5-exercise-target {
+        color: #7B6A58;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .m5-action {
+        background: linear-gradient(135deg, #9B1C1C 0%, #7F1717 100%);
+        color: #FFFDF9;
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        text-align: center;
+        font-weight: 880;
+        margin-top: 1rem;
+        box-shadow: 0 12px 28px rgba(155,28,28,0.22);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 52px;
+        width: 100%;
+    }
+
+    .m5-recovery-card {
+        min-height: 100%;
+    }
+
+    .m5-section-gap {
+        height: 0.35rem;
+    }
+
+    @media (max-width: 900px) {
+        .m5-hero {
+            padding: 1.2rem;
+            border-radius: 22px;
+        }
+
+        .m5-hero h1 {
+            font-size: 2rem;
+        }
+
+        .m5-timeline-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .m5-card,
+        .m5-workout-card {
+            border-radius: 22px;
+            padding: 1rem;
+        }
+
+        .m5-exercise-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.15rem;
+        }
+
+        .m5-exercise-target {
+            white-space: normal;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+
+st.markdown("""
+<style>
+    /* Momentum 5.5 - Premium UI Bundle */
+
+    section[data-testid="stSidebar"] {
+        background:
+            radial-gradient(circle at top left, rgba(155,28,28,0.08), transparent 30%),
+            linear-gradient(180deg, #FFF8EF 0%, #F1E6D8 100%) !important;
+        border-right: 1px solid #E4D8C8 !important;
+        box-shadow: 10px 0 30px rgba(59,48,36,0.05);
+    }
+
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+        color: #34281F;
+    }
+
+    section[data-testid="stSidebar"] div[role="radiogroup"] {
+        gap: 0.35rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    section[data-testid="stSidebar"] label {
+        background: rgba(255,253,249,0.58);
+        border: 1px solid rgba(228,216,200,0.86);
+        border-radius: 15px;
+        padding: 0.55rem 0.65rem;
+        margin: 0.08rem 0;
+        transition: all 0.18s ease;
+        box-shadow: 0 5px 14px rgba(59,48,36,0.035);
+    }
+
+    section[data-testid="stSidebar"] label:hover {
+        background: rgba(255,253,249,0.95);
+        border-color: rgba(155,28,28,0.35);
+        transform: translateX(2px);
+    }
+
+    section[data-testid="stSidebar"] label:has(input:checked) {
+        background: linear-gradient(135deg, rgba(155,28,28,0.12), rgba(255,253,249,0.92));
+        border-color: rgba(155,28,28,0.45);
+        box-shadow: 0 8px 20px rgba(155,28,28,0.08);
+    }
+
+    section[data-testid="stSidebar"] label:has(input:checked) p {
+        color: #9B1C1C !important;
+        font-weight: 850 !important;
+    }
+
+    section[data-testid="stSidebar"] [data-testid="stRadio"] > label {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-bottom: 0.6rem !important;
+    }
+
+    .m55-sidebar-brand {
+        background: rgba(255,253,249,0.82);
+        border: 1px solid #E4D8C8;
+        border-radius: 22px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 28px rgba(59,48,36,0.07);
+    }
+
+    .m55-brand-mark {
+        color: #9B1C1C;
+        font-weight: 900;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .m55-brand-sub {
+        color: #7B6A58;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+
+    .m55-card {
+        background: rgba(255,253,249,0.93);
+        border: 1px solid #E4D8C8;
+        border-radius: 26px;
+        padding: 1.15rem 1.25rem;
+        box-shadow: 0 14px 32px rgba(59,48,36,0.075);
+        margin: 0.75rem 0 1rem;
+    }
+
+    .m55-title {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #7B6A58;
+        font-size: 0.72rem;
+        font-weight: 850;
+        margin-bottom: 0.55rem;
+    }
+
+    .m55-headline {
+        color: #9B1C1C;
+        font-size: 1.35rem;
+        font-weight: 880;
+        letter-spacing: -0.04em;
+        margin-bottom: 0.3rem;
+    }
+
+    .m55-muted {
+        color: #7B6A58;
+        font-size: 0.92rem;
+    }
+
+    .m55-exercise-card {
+        background: rgba(255,253,249,0.92);
+        border: 1px solid #E4D8C8;
+        border-radius: 22px;
+        padding: 1rem;
+        margin: 0.85rem 0;
+        box-shadow: 0 12px 26px rgba(59,48,36,0.065);
+    }
+
+    .m55-exercise-title {
+        color: #9B1C1C;
+        font-weight: 880;
+        font-size: 1.12rem;
+        letter-spacing: -0.03em;
+    }
+
+    .m55-exercise-meta {
+        color: #7B6A58;
+        font-size: 0.88rem;
+        margin-top: 0.2rem;
+    }
+
+    .m55-action-strip {
+        background: linear-gradient(135deg, rgba(31,58,95,0.08), rgba(255,253,249,0.88));
+        border: 1px solid rgba(31,58,95,0.12);
+        border-radius: 18px;
+        padding: 0.85rem;
+        margin: 0.65rem 0;
+        color: #1F3A5F;
+        font-weight: 750;
+    }
+
+    div[data-testid="stMetricValue"] {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+        font-size: clamp(1.5rem, 2.7vw, 2.45rem) !important;
+    }
+
+    div[data-testid="stMetric"] {
+        min-height: 128px;
+    }
+
+    @media (max-width: 900px) {
+        div[data-testid="stMetric"] {
+            min-height: auto;
+        }
+
+        div[data-testid="stMetricValue"] {
+            font-size: 1.85rem !important;
+        }
+
+        .m55-card,
+        .m55-exercise-card {
+            border-radius: 20px;
+            padding: 1rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -405,7 +892,32 @@ st.markdown("""
 # st.title("Momentum v2.1")  # Hidden for premium dashboard layout
 st.caption("Training intelligence for progressive overload.")
 
-page = st.sidebar.radio("Navigation", ["Dashboard", "Today's Workout", "Workout Log", "Exercise History", "Bodyweight Log", "Program Manager", "Program Editor", "Export / Backup", "Settings"])
+st.sidebar.markdown(
+    """
+    <div class="m55-sidebar-brand">
+        <div class="m55-brand-mark">Momentum</div>
+        <div class="m55-brand-sub">Built for consistency</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Dashboard",
+        "Today's Workout",
+        "Progress Hub",
+        "Analytics",
+        "Workout Log",
+        "Exercise History",
+        "Bodyweight Log",
+        "Program Manager",
+        "Program Editor",
+        "Export / Backup",
+        "Settings",
+    ],
+)
 
 def total_reps(reps):
     total = 0
@@ -591,53 +1103,93 @@ if page == "Dashboard":
 
     score, score_details = calculate_momentum_score()
     recovery_status = get_today_recovery().title()
-
     weeks_left = max(0, 12 - week)
+    completed_workouts = len(fetch_df("SELECT * FROM workout_completions"))
 
     st.markdown('<div class="momentum-logo">Momentum</div>', unsafe_allow_html=True)
+
     st.markdown(
         f"""
-        <div class="hero-card">
+        <div class="m5-hero">
             <h1>{dynamic_greeting()}</h1>
-            <p>Stay consistent. The results will follow.</p>
-            <span class="navy-pill">{str(date.today())}</span>
-            <span class="weeks-left">{weeks_left} weeks left</span>
+            <div class="m5-hero-sub">Training intelligence for progressive overload, consistency, and execution.</div>
+            <div class="m5-pill-row">
+                <span class="m5-pill">{str(date.today())}</span>
+                <span class="m5-pill m5-pill-red">Week {week} of 12</span>
+                <span class="m5-pill">{weeks_left} weeks left</span>
+                <span class="m5-pill m5-pill-red">Momentum {score}/100</span>
+            </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    c1, c2 = st.columns(2)
-    c1.metric("Week", f"{week}/12")
-    c2.metric("Weeks Left", weeks_left)
+    timeline_html = ""
+    for i in range(1, 13):
+        if i < week:
+            timeline_html += f'<div class="m5-week-chip done">W{i}<br>✓</div>'
+        elif i == week:
+            timeline_html += f'<div class="m5-week-chip current">W{i}<br>●</div>'
+        else:
+            timeline_html += f'<div class="m5-week-chip">W{i}<br>&nbsp;</div>'
 
-    c3, c4 = st.columns(2)
-    c3.metric("Recovery", recovery_status)
-    c4.metric("Momentum Score", f"{score}/100")
+    st.markdown(
+        f"""
+        <div class="m5-timeline">
+            <div class="m5-eyebrow">12 Week Timeline</div>
+            <div class="m5-timeline-grid">{timeline_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    c5, c6 = st.columns(2)
-    c5.metric("Completed Workouts", len(fetch_df("SELECT * FROM workout_completions")))
-    c6.metric("Next Workout", f"{next_workout['day']}", next_workout["workout_name"])
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Week", f"{week}/12")
+    m2.metric("Recovery", recovery_status)
+    m3.metric("Momentum", f"{score}/100")
+    m4.metric("Weeks Left", weeks_left)
 
     left, right = st.columns([1.05, 1])
 
     with left:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="eyebrow">Up Next</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="big-red">{next_workout["day"]} — {next_workout["workout_name"]}</div>', unsafe_allow_html=True)
+        upcoming_exercises = (
+            get_exercises(next_workout["day"])
+            if next_workout["day"] != "No Day"
+            else fetch_df("SELECT * FROM exercises WHERE 1=0")
+        )
 
-        upcoming_exercises = get_exercises(next_workout["day"]) if next_workout["day"] != "No Day" else fetch_df("SELECT * FROM exercises WHERE 1=0")
-        if upcoming_exercises.empty:
-            st.info("No exercises yet. Add exercises in Program Manager.")
-        else:
+        exercise_rows = ""
+        if not upcoming_exercises.empty:
             for _, row in upcoming_exercises.head(7).iterrows():
-                st.write(f"• **{row['exercise_name']}** · {row['target_sets']}×{row['min_reps']}–{row['max_reps']}")
-        st.markdown('<div class="primary-action-note">Go to Today\'s Workout from the sidebar to log this session.</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+                exercise_rows += (
+                    f'<div class="m5-exercise-row">'
+                    f'<span class="m5-exercise-name">{row["exercise_name"]}</span>'
+                    f'<span class="m5-exercise-target">{row["target_sets"]}×{row["min_reps"]}–{row["max_reps"]}</span>'
+                    f'</div>'
+                )
+
+        if upcoming_exercises.empty:
+            exercise_rows = '<div class="m5-muted">No exercises yet. Add exercises in Program Manager.</div>'
+
+        st.markdown(
+            f"""
+            <div class="m5-workout-card">
+                <div class="m5-eyebrow">Today's Priority</div>
+                <div class="m5-main">{next_workout["day"]} — {next_workout["workout_name"]}</div>
+                <div class="m5-muted">Your next workout is ready. Log each exercise from Today’s Workout.</div>
+                <div class="m5-exercise-list">
+                    {exercise_rows}
+                </div>
+                <div class="m5-action">Start Today’s Workout</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     with right:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="eyebrow">Recovery Overview</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-card m5-recovery-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m5-eyebrow">Recovery Overview</div>', unsafe_allow_html=True)
+
         today_checkin = get_today_checkin()
 
         if today_checkin is None:
@@ -656,33 +1208,47 @@ if page == "Dashboard":
             st.write(f"**Stress:** {stress_value:g} / 5")
             st.progress(min(stress_value / 5, 1.0), text=f"{stress_value:g} out of 5")
 
-            hydration_label = "Good" if int(today_checkin['water_hit'] or 0) else "Missing"
-            nutrition_label = "Good" if int(today_checkin['protein_hit'] or 0) else "Missing"
+            hydration_label = "Good" if int(today_checkin["water_hit"] or 0) else "Missing"
+            nutrition_label = "Good" if int(today_checkin["protein_hit"] or 0) else "Missing"
+
             st.write(f"**Hydration:** {hydration_label}")
             st.write(f"**Nutrition:** {nutrition_label}")
 
-        st.markdown('<p class="small-muted">Keep it up. You are building the system.</p>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-muted">Recovery determines execution quality.</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with st.expander("Log Daily Check-In", expanded=False):
         c1, c2 = st.columns(2)
+
         body_weight = c1.number_input("Body Weight", min_value=0.0, step=0.5)
         sleep_hours = c1.number_input("Sleep Hours", min_value=0.0, max_value=24.0, step=0.5)
         energy = c2.slider("Energy", 1, 5, 3)
         stress = c2.slider("Stress", 1, 5, 3)
+
         c3, c4, c5 = st.columns(3)
         protein_hit = c3.checkbox("Protein Hit")
         water_hit = c4.checkbox("Water Hit")
         steps_hit = c5.checkbox("Steps Hit")
+
         if st.button("Save Daily Check-In"):
-            save_checkin(str(date.today()), body_weight, sleep_hours, energy, stress, int(protein_hit), int(water_hit), int(steps_hit))
+            save_checkin(
+                str(date.today()),
+                body_weight,
+                sleep_hours,
+                energy,
+                stress,
+                int(protein_hit),
+                int(water_hit),
+                int(steps_hit),
+            )
             st.success("Daily check-in saved.")
 
     row1_left, row1_right = st.columns(2)
 
     with row1_left:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="eyebrow">Bodyweight Trend</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m5-eyebrow">Bodyweight Trend</div>', unsafe_allow_html=True)
+
         weight_logs = fetch_df("""
             SELECT checkin_date, body_weight
             FROM daily_checkins
@@ -694,51 +1260,66 @@ if page == "Dashboard":
             st.info("No bodyweight data yet.")
         else:
             weight_logs["checkin_date"] = weight_logs["checkin_date"].astype(str)
+
             current_weight = round(weight_logs["body_weight"].iloc[-1], 1)
             avg_7 = round(weight_logs["body_weight"].tail(7).mean(), 1)
-            avg_30 = round(weight_logs["body_weight"].tail(30).mean(), 1)
-            change = round(weight_logs["body_weight"].iloc[-1] - weight_logs["body_weight"].iloc[0], 1) if len(weight_logs) >= 2 else 0
+            change = (
+                round(weight_logs["body_weight"].iloc[-1] - weight_logs["body_weight"].iloc[0], 1)
+                if len(weight_logs) >= 2
+                else 0
+            )
 
             w1, w2, w3 = st.columns(3)
             w1.metric("Current", current_weight)
             w2.metric("7-Day Avg", avg_7)
             w3.metric("Trend", f"{change:+.1f}")
+
             st.line_chart(weight_logs.set_index("checkin_date")["body_weight"])
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with row1_right:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="eyebrow">Momentum Score</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m5-eyebrow">Momentum Score</div>', unsafe_allow_html=True)
+
         st.metric("Today", f"{score}/100", "Consistency")
+
         with st.expander("Score Breakdown"):
             for item in score_details:
                 st.write(item)
-        st.markdown('<p class="small-muted">Excellent consistency compounds quietly.</p>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="m5-muted">Consistency compounds quietly.</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     row2_left, row2_right = st.columns([0.9, 1.35])
 
     with row2_left:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="eyebrow">Recent Workouts</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m5-eyebrow">Recent Workouts</div>', unsafe_allow_html=True)
+
         recent = get_recent_workouts(5)
+
         if recent.empty:
             st.info("No completed workouts yet.")
         else:
             for _, row in recent.iterrows():
                 st.write(f"**{row['day']} — {row['workout_name']}**")
                 st.caption(row["completion_date"])
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with row2_right:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="eyebrow">Personal Records</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m5-eyebrow">Personal Records</div>', unsafe_allow_html=True)
+
         prs = get_personal_records()
+
         if prs.empty:
             st.info("No personal records yet.")
         else:
             st.dataframe(prs.head(6), use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(
         """
@@ -746,14 +1327,12 @@ if page == "Dashboard":
             “Discipline today. Freedom tomorrow.”
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
-
-    st.info("Phone tip: open the sidebar menu and go to Today's Workout to log your session faster.")
 
 elif page == "Today's Workout":
     st.header("Today's Workout")
-    st.caption("Mobile-optimized logging for gym sessions.")
+    st.caption("A cleaner training screen for logging sessions with less visual clutter.")
 
     days = get_workout_days()
 
@@ -765,20 +1344,19 @@ elif page == "Today's Workout":
     next_label = f"{next_workout['day']} — {next_workout['workout_name']}"
     default_index = day_options.index(next_label) if next_label in day_options else 0
 
-    st.info(f"Recommended: {next_label}")
     selected_label = st.selectbox("Workout", day_options, index=default_index)
     selected_day = selected_label.split(" — ")[0]
     selected_row = days[days["day"] == selected_day].iloc[0]
 
     st.markdown(
         f"""
-        <div class="hero-card">
-            <div class="eyebrow">Current Session</div>
-            <h2>{selected_row['day']} — {selected_row['workout_name']}</h2>
-            <p>Week {week}/12 · {phase}</p>
+        <div class="m55-card">
+            <div class="m55-title">Current Session</div>
+            <div class="m55-headline">{selected_row['day']} — {selected_row['workout_name']}</div>
+            <div class="m55-muted">Week {week}/12 · {phase} · Recommended: {next_label}</div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     exercises = get_exercises(selected_day)
@@ -788,8 +1366,8 @@ elif page == "Today's Workout":
         st.info("This workout day exists, but it has no exercises yet. Add exercises in Program Manager.")
         st.stop()
 
-    quick_mode = st.toggle("Compact gym mode", value=True)
-    st.caption("Compact gym mode keeps the logging screen cleaner on your phone.")
+    compact_mode = st.toggle("Compact gym mode", value=True)
+    st.caption("Use compact mode during gym sessions. Turn it off when you want full notes.")
 
     for _, ex in exercises.iterrows():
         latest = get_latest_log(int(ex["id"]))
@@ -798,12 +1376,14 @@ elif page == "Today's Workout":
 
         st.markdown(
             f"""
-            <div class="mobile-exercise-card">
-                <div class="mobile-exercise-title">{ex['exercise_name']}</div>
-                <div class="mobile-exercise-meta">{ex['muscle_group']} · {ex['target_sets']} sets × {ex['min_reps']}–{ex['max_reps']} · {ex['progression_type']}</div>
+            <div class="m55-exercise-card">
+                <div class="m55-exercise-title">{ex['exercise_name']}</div>
+                <div class="m55-exercise-meta">
+                    {ex['muscle_group']} · {ex['target_sets']} sets × {ex['min_reps']}–{ex['max_reps']} · {ex['progression_type']}
+                </div>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
         if latest:
@@ -815,17 +1395,17 @@ elif page == "Today's Workout":
         if count_stall_sessions(int(ex["id"])):
             st.error("Plateau warning: same result logged for 3 sessions.")
 
-        if quick_mode:
-            st.markdown(
-                f"""
-                <div class="mobile-priority-note">
-                    <strong>Next:</strong> {plan['Next Weight']} · <strong>Target:</strong> {plan['Target']}<br>
-                    {plan['Reason']}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
+        st.markdown(
+            f"""
+            <div class="m55-action-strip">
+                <strong>Next:</strong> {plan['Next Weight']} · <strong>Target:</strong> {plan['Target']}<br>
+                {plan['Reason']}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if not compact_mode:
             st.success(f"Recommendation: {rec}")
             with st.expander("Smart Progression Plan"):
                 p1, p2, p3 = st.columns(3)
@@ -834,12 +1414,13 @@ elif page == "Today's Workout":
                 p3.write(plan["Reason"])
 
         with st.form(f"log_{ex['id']}"):
-            weight_input = st.number_input("Weight / Load", min_value=0.0, step=2.5, key=f"w_{ex['id']}")
-            reps_input = st.text_input("Reps / Time / Steps", placeholder="Example: 8,8,7,6", key=f"r_{ex['id']}")
+            c1, c2 = st.columns(2)
+            weight_input = c1.number_input("Actual Weight / Load", min_value=0.0, step=2.5, key=f"w_{ex['id']}")
+            reps_input = c2.text_input("Actual Reps / Time / Steps", placeholder="Example: 8,8,7,6", key=f"r_{ex['id']}")
             rir_input = st.slider("RIR", 0.0, 5.0, 2.0, 0.5, key=f"rir_{ex['id']}")
-            notes_input = "" if quick_mode else st.text_area("Notes", key=f"notes_{ex['id']}")
+            notes_input = "" if compact_mode else st.text_area("Notes", key=f"notes_{ex['id']}")
 
-            if st.form_submit_button("Save This Exercise"):
+            if st.form_submit_button("Save Exercise Log"):
                 if reps_input.strip():
                     save_workout_log(str(date.today()), int(ex["id"]), weight_input, reps_input, rir_input, notes_input)
                     st.success(f"{ex['exercise_name']} saved.")
@@ -850,6 +1431,110 @@ elif page == "Today's Workout":
     if st.button("Mark Workout Complete"):
         mark_workout_complete(selected_row["day"], int(selected_row["day_order"]), selected_row["workout_name"])
         st.success("Workout marked complete. Refresh to see next workout update.")
+
+elif page == "Progress Hub":
+    st.header("Progress Hub")
+    st.caption("Your current phase, bodyweight trend, personal records, and consistency score.")
+
+    score, score_details = calculate_momentum_score()
+    weeks_left = max(0, 12 - week)
+
+    p1, p2, p3, p4 = st.columns(4)
+    p1.metric("Current Week", f"{week}/12")
+    p2.metric("Weeks Left", weeks_left)
+    p3.metric("Momentum Score", f"{score}/100")
+    p4.metric("Recovery", get_today_recovery().title())
+
+    st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+    st.markdown('<div class="m55-title">Bodyweight Trend</div>', unsafe_allow_html=True)
+
+    weight_logs = fetch_df("""
+        SELECT checkin_date, body_weight
+        FROM daily_checkins
+        WHERE body_weight IS NOT NULL AND body_weight > 0
+        ORDER BY checkin_date ASC
+    """)
+
+    if weight_logs.empty:
+        st.info("No bodyweight data yet.")
+    else:
+        weight_logs["checkin_date"] = weight_logs["checkin_date"].astype(str)
+        current_weight = round(weight_logs["body_weight"].iloc[-1], 1)
+        avg_7 = round(weight_logs["body_weight"].tail(7).mean(), 1)
+        avg_30 = round(weight_logs["body_weight"].tail(30).mean(), 1)
+        trend = round(weight_logs["body_weight"].iloc[-1] - weight_logs["body_weight"].iloc[0], 1) if len(weight_logs) >= 2 else 0
+
+        w1, w2, w3, w4 = st.columns(4)
+        w1.metric("Current", current_weight)
+        w2.metric("7-Day Avg", avg_7)
+        w3.metric("30-Day Avg", avg_30)
+        w4.metric("Trend", f"{trend:+.1f}")
+        st.line_chart(weight_logs.set_index("checkin_date")["body_weight"])
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    left, right = st.columns([1.25, 1])
+
+    with left:
+        st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m55-title">Personal Records</div>', unsafe_allow_html=True)
+        prs = get_personal_records()
+        if prs.empty:
+            st.info("No personal records yet.")
+        else:
+            st.dataframe(prs.head(10), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with right:
+        st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m55-title">Momentum Score Breakdown</div>', unsafe_allow_html=True)
+        for item in score_details:
+            st.write(f"• {item}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+elif page == "Analytics":
+    st.header("Analytics")
+    st.caption("Training patterns, exercise frequency, and muscle-group logging summary.")
+
+    summary = get_program_count_summary()
+    if not summary.empty:
+        a, b, c = st.columns(3)
+        a.metric("Active Programs", int(summary["active_programs"].iloc[0] or 0))
+        b.metric("Archived Programs", int(summary["archived_programs"].iloc[0] or 0))
+        c.metric("Total Programs", int(summary["total_programs"].iloc[0] or 0))
+
+    st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+    st.markdown('<div class="m55-title">Workout Frequency</div>', unsafe_allow_html=True)
+    weekly = get_weekly_workout_summary()
+    if weekly.empty:
+        st.info("No completed workout data yet.")
+    else:
+        weekly["completion_date"] = weekly["completion_date"].astype(str)
+        st.line_chart(weekly.set_index("completion_date")["completed_workouts"])
+        st.dataframe(weekly, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    left, right = st.columns(2)
+
+    with left:
+        st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m55-title">Exercise Frequency</div>', unsafe_allow_html=True)
+        frequency = get_exercise_frequency()
+        if frequency.empty:
+            st.info("No exercise logs yet.")
+        else:
+            st.dataframe(frequency, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with right:
+        st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+        st.markdown('<div class="m55-title">Muscle Group Log Summary</div>', unsafe_allow_html=True)
+        muscle_summary = get_muscle_volume_summary()
+        if muscle_summary.empty:
+            st.info("No muscle-group data yet.")
+        else:
+            st.dataframe(muscle_summary, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "Workout Log":
     st.header("Workout Log")
@@ -1147,6 +1832,22 @@ elif page == "Program Editor":
             else:
                 st.error("Program name cannot be blank.")
 
+
+    st.subheader("Archive Program")
+    st.caption("Archiving hides nothing yet, but marks programs you are not actively using.")
+    archive_col, unarchive_col = st.columns(2)
+    if archive_col.button("Archive Selected Program"):
+        if selected_program_id == 1:
+            st.error("Shoulder Specialization is protected and cannot be archived.")
+        else:
+            archive_program(selected_program_id)
+            st.success("Program archived.")
+
+    if unarchive_col.button("Unarchive Selected Program"):
+        unarchive_program(selected_program_id)
+        st.success("Program unarchived.")
+
+
     st.subheader("Duplicate Program")
     st.info("Option A: duplication copies the full program, including all workout days and exercises.")
     with st.form("duplicate_program_form"):
@@ -1359,4 +2060,4 @@ elif page == "Settings":
             st.error("Check the confirmation box first.")
 
     st.subheader("Version")
-    st.code("Momentum v3.1 - Mobile Optimization")
+    st.code("Momentum 5.5 - Premium UI Bundle")
