@@ -6,6 +6,7 @@ from database import *
 
 from views.dashboard import dashboard_page
 from views.settings import settings_page
+from views.exports import exports_page
 
 st.set_page_config(page_title="Momentum 6.9", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
@@ -1442,27 +1443,8 @@ elif page == "Program Editor":
             use_container_width=True
         )
 
-
 elif page == "Export / Backup":
-    st.header("Export / Backup")
-    st.caption("Download your Momentum data as CSV files. This helps protect your logs before future upgrades.")
-
-    tables = get_export_tables()
-
-    for table_name, table_df in tables.items():
-        st.subheader(table_name)
-        if table_df.empty:
-            st.info("No data yet.")
-        else:
-            st.dataframe(table_df, use_container_width=True)
-            csv = table_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label=f"Download {table_name}.csv",
-                data=csv,
-                file_name=f"{table_name}.csv",
-                mime="text/csv"
-            )
-
+   exports_page()
 
 elif page == "Settings":
     settings_page()
