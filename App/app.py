@@ -7,10 +7,9 @@ from database import *
 from views.dashboard import dashboard_page
 from views.workout import workout_page
 from views.analytics import analytics_page
-from views.recovery import recovery_page
 from views.settings import settings_page
 from views.exports import exports_page
-from views.program_builder import program_builder_page
+from views.bodyweight import bodyweight_page
 
 st.set_page_config(page_title="Momentum 6.9", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
@@ -878,39 +877,6 @@ elif page == "Exercise History":
         st.line_chart(logs.set_index("log_date")["weight"])
         st.subheader("Volume Trend")
         st.line_chart(logs.set_index("log_date")["volume"])
-
-
-elif page == "Bodyweight Log":
-    st.header("Bodyweight Log")
-    st.caption("Use this page to add, edit, or clear bodyweight entries by date.")
-
-    c1, c2 = st.columns(2)
-    entry_date = c1.date_input("Date", value=date.today())
-    entry_weight = c2.number_input("Body Weight", min_value=0.0, step=0.5)
-
-    if st.button("Save Bodyweight Entry"):
-        save_bodyweight_entry(str(entry_date), entry_weight)
-        st.success("Bodyweight entry saved.")
-
-    weight_logs = fetch_df("""
-        SELECT checkin_date, body_weight
-        FROM daily_checkins
-        WHERE body_weight IS NOT NULL AND body_weight > 0
-        ORDER BY checkin_date DESC
-    """)
-
-    if weight_logs.empty:
-        st.info("No bodyweight entries yet.")
-    else:
-        st.subheader("Bodyweight History")
-        st.dataframe(weight_logs, use_container_width=True)
-
-        clear_date = st.selectbox("Clear entry for date", weight_logs["checkin_date"].tolist())
-        if st.button("Clear Selected Bodyweight Entry"):
-            clear_bodyweight_entry(clear_date)
-            st.success("Selected bodyweight entry cleared. Refresh to update the table.")
-
-
 
 elif page == "Program Manager":
     st.header("Program Manager")
