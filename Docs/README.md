@@ -9,20 +9,16 @@ Momentum is a private training operating system built for long-term workout trac
 - `Development/` — experimental development work
 - `Releases/` — stable milestone snapshots
 - `Docs/` — documentation
-- `Assets/` — future images, icons, and design files
 
 ## Run Momentum
 
 ```powershell
-cd "C:\Users\escar\OneDrive\Apps\Momentum\App"
-py -m streamlit run app.py --server.port 8550
-
-# Password
-
-Default local development password:
-
-```text
-momentum
+cd App
+py -m streamlit run app.py
 ```
 
-If deploying publicly in the future, set the `APP_PASSWORD` secret instead of using the default password.
+## Authentication
+
+Momentum uses the `APP_PASSWORD` secret for authentication when deployed.
+
+For local development, configure the password through environment variables or Streamlit secrets rather than hardcoding credentials.
