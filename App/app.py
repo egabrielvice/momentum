@@ -9,7 +9,6 @@ from views.workout import workout_page
 from views.analytics import analytics_page
 from views.settings import settings_page
 from views.exports import exports_page
-from views.bodyweight import bodyweight_page
 
 st.set_page_config(page_title="Momentum 6.9", page_icon="🏋️", layout="wide", initial_sidebar_state="collapsed")
 init_db()
@@ -46,7 +45,6 @@ NAV_OPTIONS = [
     "Analytics",
     "Workout Log",
     "Exercise History",
-    "Bodyweight Log",
     "Program Manager",
     "Program Editor",
     "Export / Backup",
@@ -74,7 +72,6 @@ if page == "Dashboard":
     active_program = programs[programs["id"] == active_program_id].iloc[0] if not programs.empty else None
 
     score, score_details = calculate_momentum_score()
-    recovery_status = get_today_recovery().title()
     weeks_left = max(0, 12 - week)
     completed_workouts = len(fetch_df("SELECT * FROM workout_completions"))
 
@@ -115,11 +112,10 @@ if page == "Dashboard":
         unsafe_allow_html=True,
     )
 
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3 = st.columns(3)
     m1.metric("Week", f"{week}/12")
-    m2.metric("Recovery", recovery_status)
-    m3.metric("Momentum", f"{score}/100")
-    m4.metric("Weeks Left", weeks_left)
+    m2.metric("Momentum", f"{score}/100")
+    m3.metric("Weeks Left", weeks_left)
 
     left, right = st.columns([1.05, 1])
 
@@ -159,109 +155,29 @@ if page == "Dashboard":
         )
 
     with right:
-        st.markdown('<div class="m5-card m5-recovery-card">', unsafe_allow_html=True)
-        st.markdown('<div class="m5-eyebrow">Recovery Overview</div>', unsafe_allow_html=True)
-
-        today_checkin = get_today_checkin()
-
-        if today_checkin is None:
-            st.info("No check-in yet today.")
-        else:
-            sleep_value = float(today_checkin["sleep_hours"] or 0)
-            energy_value = float(today_checkin["energy"] or 0)
-            stress_value = float(today_checkin["stress"] or 0)
-
-            st.write(f"**Sleep:** {sleep_value:g} / 8 h")
-            st.progress(min(sleep_value / 8, 1.0), text=f"{sleep_value:g} hours logged")
-
-            st.write(f"**Energy:** {energy_value:g} / 5")
-            st.progress(min(energy_value / 5, 1.0), text=f"{energy_value:g} out of 5")
-
-            st.write(f"**Stress:** {stress_value:g} / 5")
-            st.progress(min(stress_value / 5, 1.0), text=f"{stress_value:g} out of 5")
-
-            hydration_label = "Good" if int(today_checkin["water_hit"] or 0) else "Missing"
-            nutrition_label = "Good" if int(today_checkin["protein_hit"] or 0) else "Missing"
-
-            st.write(f"**Hydration:** {hydration_label}")
-            st.write(f"**Nutrition:** {nutrition_label}")
-
-        st.markdown('<div class="m5-muted">Recovery determines execution quality.</div>', unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with st.expander("Log Daily Check-In", expanded=False):
-        c1, c2 = st.columns(2)
-
-        body_weight = c1.number_input("Body Weight", min_value=0.0, step=0.5)
-        sleep_hours = c1.number_input("Sleep Hours", min_value=0.0, max_value=24.0, step=0.5)
-        energy = c2.slider("Energy", 1, 5, 3)
-        stress = c2.slider("Stress", 1, 5, 3)
-
-        c3, c4, c5 = st.columns(3)
-        protein_hit = c3.checkbox("Protein Hit")
-        water_hit = c4.checkbox("Water Hit")
-        steps_hit = c5.checkbox("Steps Hit")
-
-        if st.button("Save Daily Check-In"):
-            save_checkin(
-                str(date.today()),
-                body_weight,
-                sleep_hours,
-                energy,
-                stress,
-                int(protein_hit),
-                int(water_hit),
-                int(steps_hit),
-            )
-            st.success("Daily check-in saved.")
-
-    row1_left, row1_right = st.columns(2)
-
-    with row1_left:
         st.markdown('<div class="m5-card">', unsafe_allow_html=True)
-        st.markdown('<div class="m5-eyebrow">Bodyweight Trend</div>', unsafe_allow_html=True)
+        st.markdown('<div class="m5-eyebrow">Active Program</div>', unsafe_allow_html=True)
 
-        weight_logs = fetch_df("""
-            SELECT checkin_date, body_weight
-            FROM daily_checkins
-            WHERE body_weight IS NOT NULL AND body_weight > 0
-            ORDER BY checkin_date ASC
-        """)
-
-        if weight_logs.empty:
-            st.info("No bodyweight data yet.")
+        if active_program is None:
+            st.info("No active program selected.")
         else:
-            weight_logs["checkin_date"] = weight_logs["checkin_date"].astype(str)
+            st.markdown(f"### {active_program['program_name']}")
+            st.write(f"**Goal:** {active_program['goal'] or 'No goal added yet.'}")
+            st.write(f"**Program length:** {int(active_program['duration_weeks'])} weeks")
+            st.write(f"**Start date:** {get_setting('phase_start_date', str(date.today()))}")
+            st.write(f"**Current phase:** {phase}")
 
-            current_weight = round(weight_logs["body_weight"].iloc[-1], 1)
-            avg_7 = round(weight_logs["body_weight"].tail(7).mean(), 1)
-            change = (
-                round(weight_logs["body_weight"].iloc[-1] - weight_logs["body_weight"].iloc[0], 1)
-                if len(weight_logs) >= 2
-                else 0
-            )
-
-            w1, w2, w3 = st.columns(3)
-            w1.metric("Current", current_weight)
-            w2.metric("7-Day Avg", avg_7)
-            w3.metric("Trend", f"{change:+.1f}")
-
-            st.line_chart(weight_logs.set_index("checkin_date")["body_weight"])
-
+        st.caption("Change the program start date or restart at Week 1 from Settings.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with row1_right:
-        st.markdown('<div class="m5-card">', unsafe_allow_html=True)
-        st.markdown('<div class="m5-eyebrow">Momentum Score</div>', unsafe_allow_html=True)
-
-        st.metric("Today", f"{score}/100", "Consistency")
-
-        with st.expander("Score Breakdown"):
-            for item in score_details:
-                st.write(item)
-
-        st.markdown('<div class="m5-muted">Consistency compounds quietly.</div>', unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('<div class="m5-card">', unsafe_allow_html=True)
+    st.markdown('<div class="m5-eyebrow">Momentum Score</div>', unsafe_allow_html=True)
+    st.metric("Current", f"{score}/100", "Training consistency")
+    with st.expander("Score Breakdown"):
+        for item in score_details:
+            st.write(item)
+    st.markdown('<div class="m5-muted">Nutrition, bodyweight, and daily health tracking are managed in your Excel planner.</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     row2_left, row2_right = st.columns([0.9, 1.35])
 
@@ -776,44 +692,17 @@ elif page == "Progress Center":
 
 elif page == "Progress Hub":
     st.header("Progress Hub")
-    st.caption("Your current phase, bodyweight trend, personal records, and consistency score.")
+    st.caption("Your training phase, personal records, and consistency score.")
 
     score, score_details = calculate_momentum_score()
     weeks_left = max(0, 12 - week)
 
-    p1, p2, p3, p4 = st.columns(4)
+    p1, p2, p3 = st.columns(3)
     p1.metric("Current Week", f"{week}/12")
     p2.metric("Weeks Left", weeks_left)
     p3.metric("Momentum Score", f"{score}/100")
-    p4.metric("Recovery", get_today_recovery().title())
 
-    st.markdown('<div class="m55-card">', unsafe_allow_html=True)
-    st.markdown('<div class="m55-title">Bodyweight Trend</div>', unsafe_allow_html=True)
-
-    weight_logs = fetch_df("""
-        SELECT checkin_date, body_weight
-        FROM daily_checkins
-        WHERE body_weight IS NOT NULL AND body_weight > 0
-        ORDER BY checkin_date ASC
-    """)
-
-    if weight_logs.empty:
-        st.info("No bodyweight data yet.")
-    else:
-        weight_logs["checkin_date"] = weight_logs["checkin_date"].astype(str)
-        current_weight = round(weight_logs["body_weight"].iloc[-1], 1)
-        avg_7 = round(weight_logs["body_weight"].tail(7).mean(), 1)
-        avg_30 = round(weight_logs["body_weight"].tail(30).mean(), 1)
-        trend = round(weight_logs["body_weight"].iloc[-1] - weight_logs["body_weight"].iloc[0], 1) if len(weight_logs) >= 2 else 0
-
-        w1, w2, w3, w4 = st.columns(4)
-        w1.metric("Current", current_weight)
-        w2.metric("7-Day Avg", avg_7)
-        w3.metric("30-Day Avg", avg_30)
-        w4.metric("Trend", f"{trend:+.1f}")
-        st.line_chart(weight_logs.set_index("checkin_date")["body_weight"])
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.info("Bodyweight, nutrition, measurements, and daily health logs are tracked in your Excel planner.")
 
     left, right = st.columns([1.25, 1])
 
