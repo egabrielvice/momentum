@@ -4,6 +4,7 @@ import streamlit as st
 def require_password():
     """
     Private access gate.
+
     Local default password: momentum
     Deployment password: set APP_PASSWORD in Streamlit secrets.
     """
@@ -18,7 +19,24 @@ def require_password():
     if st.session_state["authenticated"]:
         return
 
-    st.markdown('<div class="momentum-logo">Momentum</div>', unsafe_allow_html=True)
+    # Align the Momentum label with the text inside the access card.
+    st.markdown(
+        """
+        <div style="
+            padding-left: 32px;
+            margin-bottom: 12px;
+            color: #9f1118;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+        ">
+            MOMENTUM
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         """
         <div class="hero-card">
@@ -26,7 +44,7 @@ def require_password():
             <p>Enter your password to open Momentum.</p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     password = st.text_input("Password", type="password")

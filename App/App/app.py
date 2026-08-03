@@ -12,7 +12,7 @@ from views.exports import exports_page
 
 st.set_page_config(
     page_title="Momentum",
-    page_icon="",
+    page_icon="🏋️",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
