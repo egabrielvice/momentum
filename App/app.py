@@ -551,7 +551,7 @@ elif page == "Today's Workout":
             on_change=persist_exercise_draft, args=callback_args,
         )
         rir_input = st.slider(
-            "RIR", 0.0, 5.0, 0.5, key=rir_key,
+            "RIR", 0.0, 5.0, step=0.5, key=rir_key,
             on_change=persist_exercise_draft, args=callback_args,
         )
         if compact_mode:
