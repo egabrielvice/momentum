@@ -265,17 +265,27 @@ elif page == "Today's Workout":
                     save_readiness_checkin(energy, sleep_quality, soreness, pain, motivation)
                     st.rerun()
 
-    with st.expander("Quick log a run"):
-        st.caption("Record only what confirms the run. Momentum does not track daily steps.")
-        with st.form("quick_run_form", clear_on_submit=True):
-            run_1, run_2, run_3 = st.columns(3)
-            run_date = run_1.date_input("Date", value=date.today(), key="quick_run_date")
-            run_minutes = run_2.number_input("Minutes", min_value=1, step=1, value=20)
-            run_km = run_3.number_input("Distance · km (optional)", min_value=0.0, step=0.1, value=0.0)
-            run_type = st.selectbox("Type (optional)", ["Run", "Easy Run", "Intervals", "Long Run", "Walk/Run"])
-            if st.form_submit_button("Confirm Run", type="primary"):
-                save_quick_run(run_date, run_minutes, run_km, run_type)
-                st.success("Run recorded.")
+    st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+    st.markdown('<div class="m55-title">Run / Cardio</div>', unsafe_allow_html=True)
+    st.caption("Confirm a completed run in seconds. Momentum does not track daily steps.")
+    with st.form("quick_run_form", clear_on_submit=True):
+        run_1, run_2, run_3, run_4 = st.columns(4)
+        run_date = run_1.date_input("Date", value=date.today(), key="quick_run_date")
+        run_type = run_2.selectbox("Session", ["Easy Run", "Intervals", "Long Run", "Walk/Run", "Run"])
+        run_minutes = run_3.number_input("Minutes", min_value=1, step=1, value=20)
+        run_km = run_4.number_input("Kilometers (optional)", min_value=0.0, step=0.1, value=0.0)
+        if st.form_submit_button("Confirm Run", type="primary"):
+            save_quick_run(run_date, run_minutes, run_km, run_type)
+            st.success("Run recorded and included in your program report.")
+
+    recent_runs = get_running_sessions().head(3)
+    if not recent_runs.empty:
+        st.dataframe(
+            recent_runs[["session_date", "run_type", "completed_minutes", "distance_km"]],
+            use_container_width=True,
+            hide_index=True,
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     with st.expander("Plan or reschedule training"):
         schedule_date = st.date_input("Training date", value=date.today(), key="schedule_date")
@@ -896,6 +906,57 @@ elif page == "Progress Hub":
         for item in score_details:
             st.write(f"• {item}")
         st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="m55-card">', unsafe_allow_html=True)
+    st.markdown('<div class="m55-title">Current Program Report</div>', unsafe_allow_html=True)
+    report = get_current_program_report()
+    program = report["program"]
+    program_name = program.iloc[0]["program_name"] if not program.empty else "Active Program"
+    goal = program.iloc[0]["goal"] if not program.empty else ""
+
+    st.markdown(f"### {program_name}")
+    if goal:
+        st.caption(goal)
+    st.write(f"**Started:** {report['start_date']} · **Current:** Week {week}/12 · {phase} · {phase_prescription['target_rir']}")
+
+    strength_sessions = report["strength_sessions"]
+    runs = report["runs"]
+    bodyweight = report["bodyweight"]
+    report_1, report_2, report_3, report_4 = st.columns(4)
+    report_1.metric("Strength Sessions", len(strength_sessions))
+    report_2.metric("Strength Minutes", f"{strength_sessions['duration_minutes'].fillna(0).sum():.0f}" if not strength_sessions.empty else "0")
+    report_3.metric("Runs", len(runs))
+    report_4.metric("Running Minutes", f"{runs['completed_minutes'].fillna(0).sum():.0f}" if not runs.empty else "0")
+
+    report_tabs = st.tabs(["Strength", "Running", "Bodyweight"])
+    with report_tabs[0]:
+        if report["exercise_progress"].empty:
+            st.info("No strength data has been recorded for this program yet.")
+        else:
+            st.dataframe(report["exercise_progress"], use_container_width=True, hide_index=True)
+    with report_tabs[1]:
+        if runs.empty:
+            st.info("No runs recorded yet. Use Run / Cardio on Today's Workout.")
+        else:
+            total_km = runs["distance_km"].fillna(0).sum()
+            longest = runs["completed_minutes"].fillna(0).max()
+            r1, r2 = st.columns(2)
+            r1.metric("Distance Recorded", f"{total_km:.1f} km")
+            r2.metric("Longest Run", f"{longest:.0f} min")
+            st.dataframe(runs.sort_values("session_date", ascending=False), use_container_width=True, hide_index=True)
+    with report_tabs[2]:
+        if bodyweight.empty:
+            st.info("No bodyweight entries exist for this program period.")
+        else:
+            first_weight = float(bodyweight.iloc[0]["body_weight"])
+            latest_weight = float(bodyweight.iloc[-1]["body_weight"])
+            b1, b2, b3 = st.columns(3)
+            b1.metric("Starting", f"{first_weight:g}")
+            b2.metric("Latest", f"{latest_weight:g}")
+            b3.metric("Change", f"{latest_weight - first_weight:+.1f}")
+            st.line_chart(bodyweight.set_index("checkin_date")["body_weight"])
+    st.caption("The report uses recorded data only. Missing distance or bodyweight is never estimated.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "Analytics":
     analytics_page()
