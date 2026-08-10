@@ -264,7 +264,7 @@ def init_db():
             value TEXT
         )
     """)
-    cur.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('phase_start_date', ?)", (str(date.today()),))
+    cur.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('phase_start_date', ?)", (str(local_today()),))
     cur.execute(
     "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('active_program_id', '1')"
 )
@@ -307,9 +307,9 @@ def set_setting(key, value):
     """, (key, value))
 
 def current_week():
-    start = get_setting("phase_start_date", str(date.today()))
+    start = get_setting("phase_start_date", str(local_today()))
     start_date = datetime.strptime(start, "%Y-%m-%d").date()
-    return max(1, min(12, ((date.today() - start_date).days // 7) + 1))
+    return max(1, min(12, ((local_today() - start_date).days // 7) + 1))
 
 def get_phase(week):
     if week <= 4:
@@ -579,6 +579,55 @@ def get_running_summary(days=7):
         FROM running_sessions
         WHERE date(session_date) >= date(?, ?)
     """, (str(local_today()), f"-{int(days) - 1} days"))
+
+
+def get_current_program_report():
+    """Return report data for the active program without changing history."""
+    program_id = get_active_program_id()
+    start_date = get_setting("phase_start_date", str(local_today()))
+
+    programs = fetch_df("SELECT * FROM programs WHERE id = ?", (program_id,))
+    strength_sessions = fetch_df("""
+        SELECT session_date, day, workout_name, duration_minutes,
+               exercise_count, set_count, total_volume
+        FROM workout_sessions
+        WHERE ended_at IS NOT NULL AND date(session_date) >= date(?)
+        ORDER BY session_date ASC, id ASC
+    """, (start_date,))
+    exercise_progress = fetch_df("""
+        SELECT e.exercise_name, e.muscle_group,
+               COUNT(wl.id) AS logs,
+               MIN(wl.log_date) AS first_log,
+               MAX(wl.log_date) AS latest_log,
+               MAX(COALESCE(wl.weight, 0)) AS best_load,
+               ROUND(AVG(wl.rir), 1) AS average_rir
+        FROM workout_logs wl
+        JOIN exercises e ON wl.exercise_id = e.id
+        WHERE e.program_id = ? AND date(wl.log_date) >= date(?)
+        GROUP BY e.exercise_name, e.muscle_group
+        ORDER BY e.day_order, e.id
+    """, (program_id, start_date))
+    runs = fetch_df("""
+        SELECT session_date, run_type, completed_minutes, distance_km
+        FROM running_sessions
+        WHERE date(session_date) >= date(?)
+        ORDER BY session_date ASC, id ASC
+    """, (start_date,))
+    bodyweight = fetch_df("""
+        SELECT checkin_date, body_weight
+        FROM daily_checkins
+        WHERE body_weight IS NOT NULL AND date(checkin_date) >= date(?)
+        ORDER BY checkin_date ASC
+    """, (start_date,))
+
+    return {
+        "program": programs,
+        "start_date": start_date,
+        "strength_sessions": strength_sessions,
+        "exercise_progress": exercise_progress,
+        "runs": runs,
+        "bodyweight": bodyweight,
+    }
 
 def get_latest_log(exercise_id):
     conn = get_connection()
