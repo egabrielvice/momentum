@@ -255,6 +255,9 @@ def init_db():
             created_at TEXT NOT NULL
         )
     """)
+    running_columns = [row[1] for row in cur.execute("PRAGMA table_info(running_sessions)").fetchall()]
+    if "distance_km" not in running_columns:
+        cur.execute("ALTER TABLE running_sessions ADD COLUMN distance_km REAL")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS app_settings (
             key TEXT PRIMARY KEY,
@@ -316,6 +319,18 @@ def get_phase(week):
     if week == 9:
         return "Deload"
     return "Peak Phase"
+
+
+def get_phase_prescription(week):
+    """Return the non-destructive 12-week training target for the current week."""
+    week = max(1, min(12, int(week)))
+    if week <= 4:
+        return {"phase": "Base Phase", "target_rir": "2 RIR", "volume": "Normal volume"}
+    if week <= 8:
+        return {"phase": "Progression Phase", "target_rir": "1 RIR", "volume": "Normal volume"}
+    if week == 9:
+        return {"phase": "Deload", "target_rir": "3–4 RIR", "volume": "Reduce sets by 30–40%"}
+    return {"phase": "Peak Phase", "target_rir": "1 RIR", "volume": "Normal volume"}
 
 def get_programs():
     ensure_program_archive_column()
@@ -534,17 +549,16 @@ def get_today_readiness():
     return {"status": "Ready", "score": score, "recommendation": "Train as planned."}
 
 
-def save_running_session(session_date, run_type, planned_minutes, completed_minutes,
-                         distance_miles, run_walk_pattern, rpe, pain, notes):
+def save_quick_run(session_date, completed_minutes, distance_km=0, run_type="Run"):
+    """Save the minimum useful run record without requiring a dedicated workflow."""
     execute("""
         INSERT INTO running_sessions
         (session_date, run_type, planned_minutes, completed_minutes, distance_miles,
-         run_walk_pattern, rpe, pain, notes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         distance_km, run_walk_pattern, rpe, pain, notes, created_at)
+        VALUES (?, ?, NULL, ?, NULL, ?, NULL, NULL, NULL, NULL, ?)
     """, (
-        str(session_date), run_type, float(planned_minutes or 0),
-        float(completed_minutes), float(distance_miles or 0), run_walk_pattern,
-        int(rpe), int(pain), notes, local_now().isoformat(timespec="seconds"),
+        str(session_date), run_type, float(completed_minutes),
+        float(distance_km or 0), local_now().isoformat(timespec="seconds"),
     ))
 
 
@@ -560,7 +574,7 @@ def get_running_summary(days=7):
     return fetch_df("""
         SELECT COUNT(*) AS sessions,
                COALESCE(SUM(completed_minutes), 0) AS minutes,
-               COALESCE(SUM(distance_miles), 0) AS miles,
+               COALESCE(SUM(COALESCE(distance_km, distance_miles * 1.609344)), 0) AS kilometers,
                COALESCE(AVG(rpe), 0) AS average_rpe
         FROM running_sessions
         WHERE date(session_date) >= date(?, ?)
