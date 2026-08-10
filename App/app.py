@@ -43,6 +43,7 @@ NAV_OPTIONS = [
     "Dashboard",
     "Today's Workout",
     "Workout Journal",
+    "Running",
     "Exercise Intelligence",
     "Training Calendar",
     "Progress Center",
@@ -57,7 +58,7 @@ NAV_OPTIONS = [
 ]
 
 if "nav_page" not in st.session_state:
-    st.session_state["nav_page"] = "Dashboard"
+    st.session_state["nav_page"] = "Today's Workout"
 
 page = st.sidebar.radio(
     "Navigation",
@@ -158,6 +159,10 @@ if page == "Dashboard":
             """,
             unsafe_allow_html=True,
         )
+        if st.button("Start Today's Workout", type="primary", use_container_width=True):
+            st.session_state["nav_page"] = "Today's Workout"
+            st.session_state["auto_start_workout_from_dashboard"] = True
+            st.rerun()
 
     with right:
         st.markdown('<div class="m5-card">', unsafe_allow_html=True)
@@ -240,6 +245,53 @@ elif page == "Today's Workout":
     selected_label = st.selectbox("Workout", day_options, index=default_index)
     selected_day = selected_label.split(" — ")[0]
     selected_row = days[days["day"] == selected_day].iloc[0]
+
+    readiness = get_today_readiness()
+    r1, r2 = st.columns([0.65, 1.35])
+    with r1:
+        score_label = "—" if readiness["score"] is None else f"{readiness['score']}/100"
+        st.metric("Readiness", score_label, readiness["status"])
+        st.caption(readiness["recommendation"])
+    with r2:
+        with st.expander("10-second readiness check", expanded=readiness["score"] is None):
+            with st.form("readiness_check"):
+                q1, q2, q3, q4, q5 = st.columns(5)
+                energy = q1.slider("Energy", 1, 5, 3)
+                sleep_quality = q2.slider("Sleep", 1, 5, 3)
+                soreness = q3.slider("Soreness", 1, 5, 2)
+                pain = q4.slider("Pain", 1, 5, 1)
+                motivation = q5.slider("Motivation", 1, 5, 3)
+                if st.form_submit_button("Save Readiness"):
+                    save_readiness_checkin(energy, sleep_quality, soreness, pain, motivation)
+                    st.rerun()
+
+    with st.expander("Plan or reschedule training"):
+        schedule_date = st.date_input("Training date", value=date.today(), key="schedule_date")
+        schedule_notes = st.text_input("Plan note", placeholder="Optional: moved from Tuesday")
+        s1, s2 = st.columns(2)
+        if s1.button("Schedule Selected Workout", use_container_width=True):
+            schedule_workout(
+                schedule_date,
+                selected_row["day"],
+                int(selected_row["day_order"]),
+                selected_row["workout_name"],
+                schedule_notes,
+            )
+            st.success(f"Scheduled for {schedule_date}.")
+            st.rerun()
+        today_schedule = get_scheduled_workout(str(date.today()))
+        if s2.button("Skip Today's Plan", use_container_width=True, disabled=today_schedule is None):
+            skip_scheduled_workout(str(date.today()), schedule_notes or "Skipped from Today")
+            st.success("Today's plan was skipped. Your workout history was not changed.")
+            st.rerun()
+
+        upcoming = get_upcoming_schedule()
+        if not upcoming.empty:
+            st.dataframe(
+                upcoming[["scheduled_date", "day", "workout_name", "notes"]],
+                use_container_width=True,
+                hide_index=True,
+            )
 
     st.markdown(
         f"""
@@ -388,7 +440,7 @@ elif page == "Today's Workout":
     st.markdown('</div>', unsafe_allow_html=True)
 
     exercises = get_exercises(selected_day)
-    recovery_status = "normal"
+    recovery_status = "poor" if readiness["status"] in {"Reduce", "Modify"} else "normal"
 
     if exercises.empty:
         st.info("This workout day exists, but it has no exercises yet. Add exercises in Program Manager.")
@@ -601,6 +653,68 @@ elif page == "Workout Journal":
                     st.rerun()
                 else:
                     st.error("The workout session could not be found.")
+
+elif page == "Running":
+    st.header("Running")
+    st.caption("Build running capacity gradually while managing effort and lower-body stress.")
+
+    weekly = get_running_summary(7).iloc[0]
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Runs · 7 days", int(weekly["sessions"]))
+    c2.metric("Minutes", f"{float(weekly['minutes']):.0f}")
+    c3.metric("Distance", f"{float(weekly['miles']):.2f} mi")
+    c4.metric("Average RPE", f"{float(weekly['average_rpe']):.1f}")
+
+    with st.form("running_session_form", clear_on_submit=True):
+        st.subheader("Log Run")
+        f1, f2, f3 = st.columns(3)
+        run_date = f1.date_input("Date", value=date.today())
+        run_type = f2.selectbox("Session", ["Easy Run", "Intervals", "Long Run", "Recovery Run", "Walk/Run"])
+        planned_minutes = f3.number_input("Planned minutes", min_value=0, step=5, value=30)
+
+        f4, f5, f6 = st.columns(3)
+        completed_minutes = f4.number_input("Completed minutes", min_value=1, step=1, value=30)
+        distance_miles = f5.number_input("Distance · miles", min_value=0.0, step=0.1, value=0.0)
+        run_walk_pattern = f6.text_input("Run/walk pattern", placeholder="Example: 2 min run / 1 min walk")
+
+        f7, f8 = st.columns(2)
+        run_rpe = f7.slider("Effort · RPE", 1, 10, 5)
+        run_pain = f8.slider("Pain/discomfort", 1, 5, 1)
+        run_notes = st.text_area("Notes", placeholder="Breathing, route, discomfort, or what to adjust next time")
+
+        if st.form_submit_button("Save Run", type="primary"):
+            save_running_session(
+                run_date, run_type, planned_minutes, completed_minutes,
+                distance_miles, run_walk_pattern, run_rpe, run_pain, run_notes,
+            )
+            st.success("Run saved.")
+            st.rerun()
+
+    runs = get_running_sessions()
+    if runs.empty:
+        render_empty_state("No running sessions yet. Your first entry will establish a baseline.")
+    else:
+        st.subheader("Running History")
+        st.dataframe(
+            runs[["session_date", "run_type", "planned_minutes", "completed_minutes",
+                  "distance_miles", "run_walk_pattern", "rpe", "pain", "notes"]],
+            use_container_width=True,
+            hide_index=True,
+        )
+        with st.expander("Delete a running entry"):
+            run_ids = runs["id"].tolist()
+            selected_run_id = st.selectbox("Entry", run_ids, format_func=lambda value: (
+                f"{runs.loc[runs['id'] == value, 'session_date'].iloc[0]} — "
+                f"{runs.loc[runs['id'] == value, 'run_type'].iloc[0]}"
+            ))
+            confirm_run_delete = st.checkbox("I understand this permanently deletes this running entry.")
+            if st.button("Delete Selected Run"):
+                if confirm_run_delete:
+                    delete_running_session(selected_run_id)
+                    st.success("Running entry deleted.")
+                    st.rerun()
+                else:
+                    st.error("Confirm the deletion first.")
 
 elif page == "Exercise Intelligence":
     st.header("Exercise Intelligence")
