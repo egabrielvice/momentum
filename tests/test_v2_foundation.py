@@ -69,6 +69,14 @@ class MomentumV2FoundationTests(unittest.TestCase):
         self.assertEqual(database.get_phase_prescription(9)["volume"], "Reduce sets by 30–40%")
         self.assertEqual(database.get_phase_prescription(12)["target_rir"], "1 RIR")
 
+    def test_current_program_report_includes_running_without_steps(self):
+        database.save_quick_run(database.local_today(), 32, 4.2, "Easy Run")
+        report = database.get_current_program_report()
+        self.assertEqual(len(report["runs"]), 1)
+        self.assertEqual(float(report["runs"].iloc[0]["completed_minutes"]), 32.0)
+        self.assertEqual(float(report["runs"].iloc[0]["distance_km"]), 4.2)
+        self.assertNotIn("steps", report)
+
 
 if __name__ == "__main__":
     unittest.main()
