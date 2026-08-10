@@ -77,7 +77,25 @@ def local_today():
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
+
+def create_daily_database_backup(retain=14):
+    """Create at most one pre-launch backup per day and retain recent copies."""
+    if not DB_PATH.exists():
+        return None
+    import shutil
+
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    backup_path = BACKUP_DIR / f"momentum_daily_{local_today().isoformat()}.db"
+    if not backup_path.exists():
+        shutil.copy2(DB_PATH, backup_path)
+
+    backups = sorted(BACKUP_DIR.glob("momentum_daily_*.db"), reverse=True)
+    for old_backup in backups[int(retain):]:
+        old_backup.unlink(missing_ok=True)
+    return str(backup_path)
+
 def init_db():
+    create_daily_database_backup()
     conn = get_connection()
     cur = conn.cursor()
 
@@ -200,13 +218,53 @@ def init_db():
             steps_hit INTEGER
         )
     """)
+    checkin_columns = [row[1] for row in cur.execute("PRAGMA table_info(daily_checkins)").fetchall()]
+    for column_name, column_type in {
+        "sleep_quality": "INTEGER",
+        "soreness": "INTEGER",
+        "pain": "INTEGER",
+        "motivation": "INTEGER",
+    }.items():
+        if column_name not in checkin_columns:
+            cur.execute(f"ALTER TABLE daily_checkins ADD COLUMN {column_name} {column_type}")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS training_schedule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scheduled_date TEXT NOT NULL UNIQUE,
+            day TEXT NOT NULL,
+            day_order INTEGER NOT NULL,
+            workout_name TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'planned',
+            notes TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS running_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_date TEXT NOT NULL,
+            run_type TEXT NOT NULL,
+            planned_minutes REAL,
+            completed_minutes REAL NOT NULL,
+            distance_miles REAL,
+            run_walk_pattern TEXT,
+            rpe INTEGER,
+            pain INTEGER,
+            notes TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+    running_columns = [row[1] for row in cur.execute("PRAGMA table_info(running_sessions)").fetchall()]
+    if "distance_km" not in running_columns:
+        cur.execute("ALTER TABLE running_sessions ADD COLUMN distance_km REAL")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS app_settings (
             key TEXT PRIMARY KEY,
             value TEXT
         )
     """)
-    cur.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('phase_start_date', ?)", (str(date.today()),))
+    cur.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('phase_start_date', ?)", (str(local_today()),))
     cur.execute(
     "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('active_program_id', '1')"
 )
@@ -249,9 +307,9 @@ def set_setting(key, value):
     """, (key, value))
 
 def current_week():
-    start = get_setting("phase_start_date", str(date.today()))
+    start = get_setting("phase_start_date", str(local_today()))
     start_date = datetime.strptime(start, "%Y-%m-%d").date()
-    return max(1, min(12, ((date.today() - start_date).days // 7) + 1))
+    return max(1, min(12, ((local_today() - start_date).days // 7) + 1))
 
 def get_phase(week):
     if week <= 4:
@@ -261,6 +319,18 @@ def get_phase(week):
     if week == 9:
         return "Deload"
     return "Peak Phase"
+
+
+def get_phase_prescription(week):
+    """Return the non-destructive 12-week training target for the current week."""
+    week = max(1, min(12, int(week)))
+    if week <= 4:
+        return {"phase": "Base Phase", "target_rir": "2 RIR", "volume": "Normal volume"}
+    if week <= 8:
+        return {"phase": "Progression Phase", "target_rir": "1 RIR", "volume": "Normal volume"}
+    if week == 9:
+        return {"phase": "Deload", "target_rir": "3–4 RIR", "volume": "Reduce sets by 30–40%"}
+    return {"phase": "Peak Phase", "target_rir": "1 RIR", "volume": "Normal volume"}
 
 def get_programs():
     ensure_program_archive_column()
@@ -369,6 +439,13 @@ def get_latest_completion():
     return row
 
 def get_next_workout():
+    scheduled = get_scheduled_workout(str(local_today()))
+    if scheduled:
+        return {
+            "day": scheduled["day"],
+            "day_order": scheduled["day_order"],
+            "workout_name": scheduled["workout_name"],
+        }
     days = get_workout_days()
     latest = get_latest_completion()
     if days.empty:
@@ -385,6 +462,172 @@ def get_next_workout():
 def mark_workout_complete(day, day_order, workout_name):
     execute("INSERT INTO workout_completions (completion_date, day, day_order, workout_name) VALUES (?, ?, ?, ?)",
             (str(date.today()), day, int(day_order), workout_name))
+    execute(
+        "UPDATE training_schedule SET status = 'completed' WHERE scheduled_date = ?",
+        (str(local_today()),),
+    )
+
+
+def schedule_workout(scheduled_date, day, day_order, workout_name, notes=""):
+    execute("""
+        INSERT INTO training_schedule
+        (scheduled_date, day, day_order, workout_name, status, notes, created_at)
+        VALUES (?, ?, ?, ?, 'planned', ?, ?)
+        ON CONFLICT(scheduled_date) DO UPDATE SET
+            day=excluded.day,
+            day_order=excluded.day_order,
+            workout_name=excluded.workout_name,
+            status='planned',
+            notes=excluded.notes
+    """, (
+        str(scheduled_date), day, int(day_order), workout_name, notes,
+        local_now().isoformat(timespec="seconds"),
+    ))
+
+
+def get_scheduled_workout(scheduled_date):
+    df = fetch_df(
+        "SELECT * FROM training_schedule WHERE scheduled_date = ? AND status = 'planned'",
+        (str(scheduled_date),),
+    )
+    return None if df.empty else df.iloc[0].to_dict()
+
+
+def get_upcoming_schedule(limit=7):
+    return fetch_df("""
+        SELECT * FROM training_schedule
+        WHERE scheduled_date >= ? AND status = 'planned'
+        ORDER BY scheduled_date
+        LIMIT ?
+    """, (str(local_today()), int(limit)))
+
+
+def skip_scheduled_workout(scheduled_date, reason=""):
+    execute(
+        "UPDATE training_schedule SET status = 'skipped', notes = ? WHERE scheduled_date = ?",
+        (reason, str(scheduled_date)),
+    )
+
+
+def save_readiness_checkin(energy, sleep_quality, soreness, pain, motivation):
+    execute("""
+        INSERT INTO daily_checkins
+        (checkin_date, energy, sleep_quality, soreness, pain, motivation)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(checkin_date) DO UPDATE SET
+            energy=excluded.energy,
+            sleep_quality=excluded.sleep_quality,
+            soreness=excluded.soreness,
+            pain=excluded.pain,
+            motivation=excluded.motivation
+    """, (
+        str(local_today()), int(energy), int(sleep_quality), int(soreness),
+        int(pain), int(motivation),
+    ))
+
+
+def get_today_readiness():
+    df = fetch_df("""
+        SELECT energy, sleep_quality, soreness, pain, motivation
+        FROM daily_checkins WHERE checkin_date = ?
+    """, (str(local_today()),))
+    if df.empty or df.iloc[0].isna().all():
+        return {"status": "Not checked", "score": None, "recommendation": "Complete the 10-second readiness check before training."}
+
+    row = df.iloc[0].fillna(3)
+    score = round((
+        float(row["energy"]) + float(row["sleep_quality"]) +
+        (6 - float(row["soreness"])) + (6 - float(row["pain"])) +
+        float(row["motivation"])
+    ) / 25 * 100)
+    if float(row["pain"]) >= 4:
+        return {"status": "Modify", "score": score, "recommendation": "Pain is elevated. Avoid painful movements and consider recovery or professional guidance."}
+    if score < 50:
+        return {"status": "Reduce", "score": score, "recommendation": "Use lighter loads or reduce one set per exercise today."}
+    if score < 70:
+        return {"status": "Proceed carefully", "score": score, "recommendation": "Train as planned, but keep 2–3 reps in reserve."}
+    return {"status": "Ready", "score": score, "recommendation": "Train as planned."}
+
+
+def save_quick_run(session_date, completed_minutes, distance_km=0, run_type="Run"):
+    """Save the minimum useful run record without requiring a dedicated workflow."""
+    execute("""
+        INSERT INTO running_sessions
+        (session_date, run_type, planned_minutes, completed_minutes, distance_miles,
+         distance_km, run_walk_pattern, rpe, pain, notes, created_at)
+        VALUES (?, ?, NULL, ?, NULL, ?, NULL, NULL, NULL, NULL, ?)
+    """, (
+        str(session_date), run_type, float(completed_minutes),
+        float(distance_km or 0), local_now().isoformat(timespec="seconds"),
+    ))
+
+
+def get_running_sessions():
+    return fetch_df("SELECT * FROM running_sessions ORDER BY session_date DESC, id DESC")
+
+
+def delete_running_session(session_id):
+    execute("DELETE FROM running_sessions WHERE id = ?", (int(session_id),))
+
+
+def get_running_summary(days=7):
+    return fetch_df("""
+        SELECT COUNT(*) AS sessions,
+               COALESCE(SUM(completed_minutes), 0) AS minutes,
+               COALESCE(SUM(COALESCE(distance_km, distance_miles * 1.609344)), 0) AS kilometers,
+               COALESCE(AVG(rpe), 0) AS average_rpe
+        FROM running_sessions
+        WHERE date(session_date) >= date(?, ?)
+    """, (str(local_today()), f"-{int(days) - 1} days"))
+
+
+def get_current_program_report():
+    """Return report data for the active program without changing history."""
+    program_id = get_active_program_id()
+    start_date = get_setting("phase_start_date", str(local_today()))
+
+    programs = fetch_df("SELECT * FROM programs WHERE id = ?", (program_id,))
+    strength_sessions = fetch_df("""
+        SELECT session_date, day, workout_name, duration_minutes,
+               exercise_count, set_count, total_volume
+        FROM workout_sessions
+        WHERE ended_at IS NOT NULL AND date(session_date) >= date(?)
+        ORDER BY session_date ASC, id ASC
+    """, (start_date,))
+    exercise_progress = fetch_df("""
+        SELECT e.exercise_name, e.muscle_group,
+               COUNT(wl.id) AS logs,
+               MIN(wl.log_date) AS first_log,
+               MAX(wl.log_date) AS latest_log,
+               MAX(COALESCE(wl.weight, 0)) AS best_load,
+               ROUND(AVG(wl.rir), 1) AS average_rir
+        FROM workout_logs wl
+        JOIN exercises e ON wl.exercise_id = e.id
+        WHERE e.program_id = ? AND date(wl.log_date) >= date(?)
+        GROUP BY e.exercise_name, e.muscle_group
+        ORDER BY e.day_order, e.id
+    """, (program_id, start_date))
+    runs = fetch_df("""
+        SELECT session_date, run_type, completed_minutes, distance_km
+        FROM running_sessions
+        WHERE date(session_date) >= date(?)
+        ORDER BY session_date ASC, id ASC
+    """, (start_date,))
+    bodyweight = fetch_df("""
+        SELECT checkin_date, body_weight
+        FROM daily_checkins
+        WHERE body_weight IS NOT NULL AND date(checkin_date) >= date(?)
+        ORDER BY checkin_date ASC
+    """, (start_date,))
+
+    return {
+        "program": programs,
+        "start_date": start_date,
+        "strength_sessions": strength_sessions,
+        "exercise_progress": exercise_progress,
+        "runs": runs,
+        "bodyweight": bodyweight,
+    }
 
 def get_latest_log(exercise_id):
     conn = get_connection()
@@ -862,6 +1105,8 @@ def get_export_tables():
         "workout_logs": fetch_df("SELECT * FROM workout_logs ORDER BY id"),
         "workout_completions": fetch_df("SELECT * FROM workout_completions ORDER BY id"),
         "workout_sessions": fetch_df("SELECT * FROM workout_sessions ORDER BY id"),
+        "training_schedule": fetch_df("SELECT * FROM training_schedule ORDER BY scheduled_date, id"),
+        "running_sessions": fetch_df("SELECT * FROM running_sessions ORDER BY session_date, id"),
         "app_settings": fetch_df("SELECT * FROM app_settings ORDER BY key"),
     }
 
@@ -873,6 +1118,8 @@ def reset_test_data():
     cur.execute("DELETE FROM workout_completions")
     cur.execute("DELETE FROM workout_sessions")
     cur.execute("DELETE FROM workout_drafts")
+    cur.execute("DELETE FROM running_sessions")
+    cur.execute("DELETE FROM training_schedule")
     conn.commit()
     conn.close()
 
@@ -946,7 +1193,7 @@ def get_database_path():
 
 def get_latest_backup():
     try:
-        backups = sorted(BACKUP_DIR.glob("momentum_backup_*.db"), reverse=True)
+        backups = sorted(BACKUP_DIR.glob("momentum_*.db"), key=lambda path: path.stat().st_mtime, reverse=True)
         return str(backups[0]) if backups else "No backups yet"
     except Exception:
         return "No backups yet"
