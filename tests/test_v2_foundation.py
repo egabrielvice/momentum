@@ -57,12 +57,17 @@ class MomentumV2FoundationTests(unittest.TestCase):
         self.assertEqual(len(backups), 1)
 
     def test_running_session_summary(self):
-        database.save_running_session(
-            database.local_today(), "Easy Run", 30, 28, 2.1, "Continuous", 5, 1, "Comfortable"
-        )
+        database.save_quick_run(database.local_today(), 28, 3.4, "Easy Run")
         summary = database.get_running_summary(7).iloc[0]
         self.assertEqual(int(summary["sessions"]), 1)
         self.assertEqual(float(summary["minutes"]), 28.0)
+        self.assertEqual(float(summary["kilometers"]), 3.4)
+
+    def test_phase_prescription_is_non_destructive_guidance(self):
+        self.assertEqual(database.get_phase_prescription(1)["target_rir"], "2 RIR")
+        self.assertEqual(database.get_phase_prescription(6)["target_rir"], "1 RIR")
+        self.assertEqual(database.get_phase_prescription(9)["volume"], "Reduce sets by 30–40%")
+        self.assertEqual(database.get_phase_prescription(12)["target_rir"], "1 RIR")
 
 
 if __name__ == "__main__":
